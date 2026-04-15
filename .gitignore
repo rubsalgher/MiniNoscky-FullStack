@@ -1,0 +1,23 @@
+# Node modules (carpetas gigantes, ¡ignóralas!)
+minich-backend/node_modules/
+minich-frontend/node_modules/
+node_modules/
+
+# Variables de entorno (¡SÚPER IMPORTANTE, nunca las subas!)
+minich-backend/.env
+.env
+
+# Archivos de build/dist (se generan automáticamente, ¡ignóralos!)
+minich-frontend/dist/
+dist/
+minich-frontend/build/
+build/
+
+# Logs y archivos temporales
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Notas locales y credenciales sensibles
+*.txt
