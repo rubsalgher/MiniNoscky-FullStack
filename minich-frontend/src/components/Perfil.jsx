@@ -44,7 +44,7 @@ const Perfil = () => {
         setCargandoOrdenes(true);
         try {
           // Asumimos que crearemos esta ruta en el backend en el siguiente paso
-          const { data } = await axios.get('http://localhost:5000/api/ordenes/mis-ordenes', {
+          const { data } = await axios.get('https://mininoscky-backend.onrender.com/api/ordenes/mis-ordenes', {
             headers: { Authorization: `Bearer ${usuario.token}` }
           });
           setOrdenes(data);
@@ -69,7 +69,7 @@ const Perfil = () => {
 
     try {
       // Asumimos que crearemos esta ruta en el backend en el siguiente paso
-      await axios.put('http://localhost:5000/api/usuarios/perfil', datos, {
+      await axios.put('https://mininoscky-backend.onrender.com/api/usuarios/perfil', datos, {
         headers: { Authorization: `Bearer ${usuario.token}` }
       });
       setMensaje({ texto: '¡Datos actualizados con éxito! 🌸', tipo: 'exito' });

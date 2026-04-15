@@ -20,7 +20,7 @@ const ProductoDetalle = () => {
   useEffect(() => {
     const obtenerDetalles = async () => {
       try {
-        const respuesta = await axios.get(`http://localhost:5000/api/productos/${id}`);
+        const respuesta = await axios.get(`https://mininoscky-backend.onrender.com/api/productos/${id}`);
         setProducto(respuesta.data);
         
         // Si el producto tiene colores, autoseleccionamos el primero para que se vea la foto

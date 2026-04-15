@@ -38,7 +38,7 @@ const Admin = () => {
   // --- FUNCIONES DE CARGA ---
   const cargarAjustes = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/settings');
+      const res = await axios.get('https://mininoscky-backend.onrender.com/api/settings');
       setAjustesTienda({
         ...res.data,
         carrusel: res.data.carrusel || { limite: 5, productosElegidos: [] }
@@ -51,7 +51,7 @@ const Admin = () => {
   const cargarProductos = async () => {
     setCargandoLista(true);
     try {
-      const respuesta = await axios.get('http://localhost:5000/api/productos');
+      const respuesta = await axios.get('https://mininoscky-backend.onrender.com/api/productos');
       setListaProductos(respuesta.data);
     } catch (error) {
       console.error("Error al cargar productos:", error);
@@ -63,7 +63,7 @@ const Admin = () => {
   const cargarOrdenesGlobales = async () => {
     setCargandoOrdenes(true);
     try {
-      const { data } = await axios.get('http://localhost:5000/api/ordenes', {
+      const { data } = await axios.get('https://mininoscky-backend.onrender.com/api/ordenes', {
         headers: { Authorization: `Bearer ${usuario.token}` }
       });
       setOrdenesGlobales(data);
@@ -93,7 +93,7 @@ const Admin = () => {
     setCargandoAjustes(true);
     try {
       const configHeaders = { headers: { Authorization: `Bearer ${usuario.token}` } };
-      await axios.put('http://localhost:5000/api/settings', ajustesTienda, configHeaders);
+      await axios.put('https://mininoscky-backend.onrender.com/api/settings', ajustesTienda, configHeaders);
       alert("¡Configuración guardada con éxito! ✨");
     } catch (error) {
       alert("Error al guardar los ajustes.");
@@ -129,7 +129,7 @@ const Admin = () => {
 
     try {
       // 2. Avisamos silenciosamente a la Base de Datos y disparamos el correo
-      await axios.put(`http://localhost:5000/api/ordenes/${ordenId}/estado`, 
+      await axios.put(`https://mininoscky-backend.onrender.com/api/ordenes/${ordenId}/estado`, 
         { estado: nuevoEstado },
         { headers: { Authorization: `Bearer ${usuario.token}` } }
       );
@@ -148,7 +148,7 @@ const Admin = () => {
     const confirmacion = window.confirm(`¿Estás seguro de que deseas eliminar "${nombre}"?`);
     if (confirmacion) {
       try {
-        await axios.delete(`http://localhost:5000/api/productos/${id}`);
+        await axios.delete(`https://mininoscky-backend.onrender.com/api/productos/${id}`);
         setListaProductos(listaProductos.filter(p => p._id !== id));
         alert('Producto eliminado. 🌸');
       } catch (error) {
@@ -190,7 +190,7 @@ const Admin = () => {
       }
     });
     try {
-      await axios.post('http://localhost:5000/api/productos', formData, { headers: { Authorization: `Bearer ${usuario.token}` } });
+      await axios.post('https://mininoscky-backend.onrender.com/api/productos', formData, { headers: { Authorization: `Bearer ${usuario.token}` } });
       setMensaje({ texto: '¡Producto subido con éxito! 🌸', tipo: 'exito' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);

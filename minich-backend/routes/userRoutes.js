@@ -14,10 +14,10 @@ import {
 
 const router = express.Router();
 
-// Ruta para crear un usuario (POST http://localhost:5000/api/usuarios/registro)
+// Ruta para crear un usuario (POST https://mininoscky-backend.onrender.com/api/usuarios/registro)
 router.post('/registro', registrarUsuario);
 
-// Ruta para iniciar sesión (POST http://localhost:5000/api/usuarios/login)
+// Ruta para iniciar sesión (POST https://mininoscky-backend.onrender.com/api/usuarios/login)
 router.post('/login', loginUsuario);
 
 // Ruta para el link del correo

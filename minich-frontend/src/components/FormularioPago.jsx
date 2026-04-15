@@ -42,7 +42,7 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
       try {
         // A) GUARDAR DIRECCIÓN SI EL CHECK ESTÁ MARCADO
         if (guardarDatos) {
-          const respuesta = await axios.put('http://localhost:5000/api/usuarios/perfil', datosEnvio, {
+          const respuesta = await axios.put('https://mininoscky-backend.onrender.com/api/usuarios/perfil', datosEnvio, {
             headers: { Authorization: `Bearer ${usuario.token}` }
           });
           actualizarUsuario(respuesta.data);
@@ -58,7 +58,7 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
           productoId: item._id
         }));
 
-        await axios.post('http://localhost:5000/api/ordenes', {
+        await axios.post('https://mininoscky-backend.onrender.com/api/ordenes', {
           productos: productosOrden,
           direccionEnvio: datosEnvio,
           precioTotal: total,
