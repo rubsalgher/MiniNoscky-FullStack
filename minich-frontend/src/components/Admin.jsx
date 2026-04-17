@@ -11,6 +11,7 @@ const Admin = () => {
 
   const [ordenesGlobales, setOrdenesGlobales] = useState([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
+  const [imagenExpandida, setImagenExpandida] = useState(null);
 
   // --- ESTADOS PARA AJUSTES GENERALES (Envío y Carrusel) ---
   const [ajustesTienda, setAjustesTienda] = useState({ 
@@ -148,7 +149,8 @@ const Admin = () => {
     const confirmacion = window.confirm(`¿Estás seguro de que deseas eliminar "${nombre}"?`);
     if (confirmacion) {
       try {
-        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`);
+        const configHeaders = { headers: { Authorization: `Bearer ${usuario.token}` } };
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`, configHeaders);
         setListaProductos(listaProductos.filter(p => p._id !== id));
         alert('Producto eliminado. 🌸');
       } catch (error) {
@@ -273,7 +275,7 @@ const Admin = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                    <textarea name="description" required value={producto.description} onChange={handleProductoChange} rows="2" className="w-full px-4 py-2 rounded-xl border border-gray-200"></textarea>
+                    <textarea name="description" value={producto.description} onChange={handleProductoChange} rows="2" className="w-full px-4 py-2 rounded-xl border border-gray-200"></textarea>
                   </div>
                 </div>
                 {/* 2. Matriz de Estilos y Tallas */}
@@ -313,8 +315,8 @@ const Admin = () => {
                                 <input type="text" value={talla.size} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'size', e.target.value)} placeholder="Ej. M" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" />
                               </div>
                               <div className="md:col-span-3">
-                                <label className="block text-xs font-medium text-gray-500 mb-1">SKU *</label>
-                                <input type="text" required value={talla.sku} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'sku', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm uppercase bg-white" />
+                                <label className="block text-xs font-medium text-gray-500 mb-1">SKU</label>
+                                <input type="text" value={talla.sku} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'sku', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm uppercase bg-white" />
                               </div>
                               <div className="md:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Precio *</label>
@@ -540,6 +542,7 @@ const Admin = () => {
                      <tr>
                        <th className="px-6 py-4">Orden / Fecha</th>
                        <th className="px-6 py-4">Cliente</th>
+                       <th className="px-6 py-4">Productos</th>
                        <th className="px-6 py-4">Total</th>
                        <th className="px-6 py-4 text-center">Estado</th>
                        <th className="px-6 py-4 text-right">Acción</th>
@@ -553,15 +556,54 @@ const Admin = () => {
                            <span className="text-xs text-gray-400">{new Date(orden.createdAt).toLocaleDateString()}</span>
                          </td>
                          <td className="px-6 py-4">
-                           {orden.usuario ? (
-                             <>
-                               <span className="block font-bold">{orden.usuario.nombre}</span>
-                               <span className="text-xs text-gray-400">{orden.usuario.email}</span>
-                             </>
-                           ) : (
-                             <span className="text-gray-400 italic">Usuario Eliminado</span>
-                           )}
-                         </td>
+                          {orden.usuario ? (
+                            /* 1. Escenario: Cliente Registrado */
+                            <>
+                              <span className="block font-bold text-gray-800">
+                                {orden.usuario.nombre} {orden.usuario.apellidos || ''}
+                              </span>
+                              <span className="text-xs text-gray-400">{orden.usuario.email}</span>
+                            </>
+                          ) : orden.cliente ? (
+                            /* 2. Escenario: Invitado (La nueva lógica) */
+                            <>
+                              <span className="block font-bold text-gray-600 italic">
+                                {orden.cliente.nombre}
+                              </span>
+                              <span className="text-xs text-gray-400 block">{orden.cliente.email}</span>
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full mt-1 inline-block border border-gray-200">
+                                Invitado
+                              </span>
+                            </>
+                          ) : (
+                            /* 3. Escenario: Fallback / Error / Realmente Eliminado */
+                            <span className="text-gray-400 italic">Usuario Eliminado</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 min-w-[250px]">
+                          <div className="space-y-3">
+                            {orden.productos.map((item, index) => (
+                              <div key={index} className="flex items-center gap-3">
+                                {/* Cajita de la Imagen en miniatura */}
+                                <div className="flex-shrink-0 w-12 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
+                                  {item.image ? (
+                                    <img src={item.image} alt={item.name} className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setImagenExpandida(item.image)} />
+                                  ) : (
+                                    <span className="text-[8px] text-gray-400 uppercase tracking-wider text-center">Sin<br/>Foto</span>
+                                  )}
+                                </div>
+                                {/* Datos del producto */}
+                                <div className="flex-1 text-xs">
+                                  <p className="font-bold text-gray-800 line-clamp-2">{item.name}</p>
+                                  <p className="text-gray-500 mt-0.5">
+                                    Cant: <span className="font-medium text-gray-700">{item.cantidad}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
                          <td className="px-6 py-4 font-bold text-gray-800">
                            ${orden.precioTotal ? orden.precioTotal.toLocaleString() : '0'}
                          </td>
@@ -591,6 +633,30 @@ const Admin = () => {
                  </table>
                </div>
              )}
+             {imagenExpandida && (
+              <div 
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out animate-fade-in"
+                onClick={() => setImagenExpandida(null)} // Cierra al hacer clic en el fondo oscuro
+              >
+                <div className="relative max-w-3xl max-h-[90vh]">
+                  {/* Botón de Cerrar (X) */}
+                  <button 
+                    className="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg hover:bg-gray-200 z-10"
+                    onClick={() => setImagenExpandida(null)}
+                  >
+                    ✕
+                  </button>
+                  
+                  {/* La imagen en grande */}
+                  <img 
+                    src={imagenExpandida} 
+                    alt="Producto ampliado" 
+                    className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl cursor-default"
+                    onClick={(e) => e.stopPropagation()} // Evita que se cierre si das clic en la foto misma
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -5,16 +5,15 @@ import { v2 as cloudinary } from 'cloudinary';
 // Función para crear un nuevo producto
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, category, brand, variants } = req.body;
+    // 1. Extraemos TODO lo que envía el frontend (agregamos price y sku)
+    const { name, description, category, brand, variants, price, sku } = req.body;
 
     // Convertimos el texto de variantes a un arreglo de objetos JSON
     let parsedVariants = variants ? JSON.parse(variants) : [];
 
-    // --- LA MAGIA OCURRE AQUÍ ---
-    // Recorremos los archivos subidos. El frontend nos enviará 'image_0', 'image_1', etc.
+    // --- LA MAGIA DE LAS IMÁGENES OCURRE AQUÍ (Intacta) ---
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        // Extraemos el número del nombre del campo (ej. de 'image_1' extraemos el '1')
         const match = file.fieldname.match(/image_(\d+)/);
         if (match) {
           const groupIndex = parseInt(match[1]);
@@ -36,17 +35,29 @@ export const createProduct = async (req, res) => {
 
     parsedVariants = parsedVariants.map(v => {
       const { groupIndex, ...rest } = v;
+      if (!rest.sku || rest.sku.trim() === '') {
+        // Le inventamos uno único
+        rest.sku = `SKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      }
+
+      // Validamos el precio también por si acaso
+      if (!rest.price) {
+        rest.price = 0; 
+      }
+
       return rest;
     });
 
+    // 2. Armamos el producto final aplicando valores por defecto inteligentes
     const newProduct = new Product({
-      name,
-      description,
+      name: name || 'Lentes',          // Fallback por si lo dejas en blanco             
+      description: description || '',  // Se guarda vacío si no escribes nada
       category,
-      brand: brand || 'Mini Nosky',
+      brand: brand || 'Mini Noscky', 
       variants: parsedVariants
     });
 
+    // 3. ¡Guardamos en MongoDB!
     const savedProduct = await newProduct.save();
 
     res.status(201).json({

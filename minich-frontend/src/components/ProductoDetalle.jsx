@@ -219,6 +219,14 @@ const ProductoDetalle = () => {
             </div>
           )}
 
+          {!tieneTallas && stock !== null && (
+            <div className="mt-2 mb-4 flex justify-end">
+              <span className={`text-sm font-medium ${stock > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {stock > 0 ? `${stock} disponibles` : 'Agotado'}
+              </span>
+            </div>
+          )}
+          
           {/* Mensaje de Error (El Candado) */}
           {errorSeleccion && (
             <div className="text-red-500 font-medium text-sm mt-2 bg-red-50 p-3 rounded-lg border border-red-100">

@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 const variantSchema = new mongoose.Schema({
   sku: { 
     type: String, 
-    required: true, 
+    required: false, 
     unique: true,
     trim: true
   },
@@ -40,7 +40,7 @@ const productSchema = new mongoose.Schema({
   },
   description: { 
     type: String, 
-    required: true 
+    required: false 
   },
   category: { 
     type: String, 

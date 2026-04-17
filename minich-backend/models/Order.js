@@ -7,11 +7,15 @@ const orderSchema = new mongoose.Schema({
     required: false,
     ref: 'User'
   },
+  cliente: {
+    nombre: { type: String },
+    email: { type: String }
+  },
   productos: [
     {
       name: { type: String, required: true },
       cantidad: { type: Number, required: true },
-      image: { type: String, required: true },
+      image: { type: String },
       price: { type: Number, required: true },
       color: String,
       size: String,

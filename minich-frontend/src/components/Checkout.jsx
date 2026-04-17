@@ -34,7 +34,7 @@ const Checkout = () => {
   useEffect(() => {
     const cargarConfig = async () => {
       try {
-        const { data } = await axios.get('https://mininoscky-backend.onrender.com/api/settings');
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/settings`);
         setConfig(data);
       } catch (error) {
         console.error("Error cargando ajustes de envío");
@@ -67,7 +67,7 @@ const Checkout = () => {
   useEffect(() => {
     const obtenerIntent = async () => {
       try {
-        const res = await axios.post('https://mininoscky-backend.onrender.com/api/pagos/crear-intento', { monto: total });
+        const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/pagos/crear-intento`, { monto: total });
         setClientSecret(res.data.clientSecret);
       } catch (error) {
         console.error("Error obteniendo el intent", error);

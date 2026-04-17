@@ -94,6 +94,13 @@ export const enviarCorreoCompra = async (emailDestino, nombre, orden) => {
             <p style="color: #9ca3af; font-size: 14px; margin-top: 5px;">Joyería y Regalos Inolvidables</p>
           </div>
 
+          <div style="background-color: #fff0f5; border-left: 4px solid #ff9eb5; padding: 12px 16px; margin: 20px auto; max-width: 500px; border-radius: 0 8px 8px 0; font-family: sans-serif; text-align: left;">
+            <p style="margin: 0; font-size: 13px; color: #555; line-height: 1.5;">
+              <strong style="color: #d84b72;">🌸 Nota importante sobre tu código QR:</strong><br> 
+              Si estás viendo este mensaje en tu carpeta de <strong>Correo no deseado (Spam)</strong>, es posible que la imagen de tu Código de Entrega esté oculta. Por favor, haz clic en <em>"Correo deseado"</em>, <em>"Es seguro"</em> o <em>"Mostrar imágenes"</em> (dependiendo de tu correo) para poder visualizarlo y presentarlo en tu recolección.
+            </p>
+          </div>
+
           <h2 style="color: #374151; text-align: center; margin-top: 20px;">¡Gracias por tu compra, ${nombre}! 🎉</h2>
           <p style="color: #4b5563; font-size: 15px; text-align: center; line-height: 1.5;">Hemos recibido tu pago correctamente y tu orden ya está en proceso.</p>
 

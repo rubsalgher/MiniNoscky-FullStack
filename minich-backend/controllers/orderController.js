@@ -113,7 +113,7 @@ export const actualizarEstadoOrden = async (req, res) => {
   try {
     const { estado } = req.body; 
     
-    // Usamos .populate() para traernos el email y nombre del cliente, porque los necesitamos para enviarle el correo
+    // Seguimos usando populate para traernos los datos si es un usuario registrado
     const orden = await Order.findById(req.params.id).populate('usuario', 'nombre email');
 
     if (orden) {
@@ -131,9 +131,17 @@ export const actualizarEstadoOrden = async (req, res) => {
       // DISPARADOR DE CORREO: Si lo marcaste como "Listo para recoger" (y antes no lo estaba)
       if (estado === 'Listo para recoger' && estadoAnterior !== 'Listo para recoger') {
         const { enviarCorreoActualizacion } = await import('../utils/mailer.js');
-        // Usamos los datos populados del cliente
-        if(orden.usuario) {
-           await enviarCorreoActualizacion(orden.usuario.email, orden.usuario.nombre, ordenActualizada);
+        
+        // 👇 LÓGICA INTELIGENTE DE CONTACTO 👇
+        // Buscamos el correo y nombre primero en el usuario registrado, y si no existe, en el invitado
+        const emailDestino = orden.usuario ? orden.usuario.email : orden.cliente?.email;
+        const nombreDestino = orden.usuario ? orden.usuario.nombre : orden.cliente?.nombre;
+
+        // Si logramos rescatar un correo (de cualquiera de los dos lados), enviamos el mensaje
+        if (emailDestino) {
+           await enviarCorreoActualizacion(emailDestino, nombreDestino, ordenActualizada);
+        } else {
+           console.warn(`No se encontró un correo para notificar la orden ${orden._id}`);
         }
       }
 
