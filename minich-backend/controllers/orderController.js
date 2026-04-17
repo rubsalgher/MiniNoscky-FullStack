@@ -6,10 +6,12 @@ import Product from '../models/Product.js';
 
 export const crearOrden = async (req, res) => {
   try {
-    // Cambiamos "precioTotal" a "total" para que coincida con tu frontend
-    const { productos, direccionEnvio, resultadoPago } = req.body;
-
+    // Recibimos el objeto "cliente" que configuramos en el frontend
+    const { productos, direccionEnvio, resultadoPago, cliente } = req.body;
     const montoFinal = req.body.precioTotal || req.body.total || 0;
+    
+    // Nuestro middleware opcional puede devolver req.usuario o req.user dependiendo de cómo lo escribiste
+    const currentUser = req.usuario || req.user; 
 
     // 1. Validar que vengan productos
     if (productos && productos.length === 0) {
@@ -18,7 +20,8 @@ export const crearOrden = async (req, res) => {
 
     // 2. Crear la nueva orden en memoria
     const orden = new Order({
-      usuario: req.user._id, 
+      usuario: currentUser ? currentUser._id : undefined, // Si es invitado, no hay ID de cuenta
+      cliente: cliente, // Guardamos los datos del contacto (vital para invitados)
       productos,
       direccionEnvio,
       precioTotal: montoFinal,
@@ -32,47 +35,42 @@ export const crearOrden = async (req, res) => {
     // 3. ¡Guardar en MongoDB!
     const ordenGuardada = await orden.save();
 
-    // 3.5. ¡NUEVO! DESCONTAR EL STOCK DE LA BASE DE DATOS
+    // 3.5. DESCONTAR EL STOCK DE LA BASE DE DATOS (Se queda igual)
     for (const item of orden.productos) {
       const productoDb = await Product.findById(item.productoId);
       
       if (productoDb && productoDb.variants && productoDb.variants.length > 0) {
-        
-        // Asumimos por defecto que es la primera variante (índice 0)
         let varianteIndex = 0;
-
-        // Si el producto tiene múltiples opciones de color/talla, intentamos buscar la exacta
         if (productoDb.variants.length > 1) {
            const indexEncontrado = productoDb.variants.findIndex(v => 
              (v.attributes?.color === item.color || (!v.attributes?.color && !item.color)) &&
              (v.attributes?.size === item.size || (!v.attributes?.size && !item.size))
            );
-           // Si la encuentra, actualizamos el índice. Si no, se queda en 0 por seguridad.
            if (indexEncontrado !== -1) varianteIndex = indexEncontrado;
         }
 
-        // Le restamos la cantidad comprada
         productoDb.variants[varianteIndex].stock -= item.cantidad;
-        
-        // Evitamos que el stock sea negativo
         if (productoDb.variants[varianteIndex].stock < 0) {
           productoDb.variants[varianteIndex].stock = 0;
         }
         
-        // 👇 ¡EL SECRETO DE MONGOOSE! 👇 
-        // Le avisamos explícitamente que cambiamos algo dentro del arreglo
         productoDb.markModified('variants');
-        
-        // Guardamos el producto con su nuevo stock
         await productoDb.save();
       }
     }
     
-    // 4. Vaciar el carrito del usuario en la base de datos
-    await User.findByIdAndUpdate(req.user._id, { carrito: [] });
+    // 4. Vaciar el carrito de la base de datos SOLO si es un usuario registrado
+    if (currentUser) {
+      await User.findByIdAndUpdate(currentUser._id, { carrito: [] });
+    }
 
-    // 5. Aquí enviamos el correo de confirmación
-    await enviarCorreoCompra(req.user.email, req.user.nombre, ordenGuardada);
+    // 5. Enviar el correo inteligente (Usa los datos de la cuenta o los del formulario de invitado)
+    const emailDestino = currentUser ? currentUser.email : cliente?.email;
+    const nombreDestino = currentUser ? currentUser.nombre : cliente?.nombre;
+    
+    if (emailDestino) {
+      await enviarCorreoCompra(emailDestino, nombreDestino, ordenGuardada);
+    }
 
     // 6. Responder al frontend que todo fue un éxito
     res.status(201).json(ordenGuardada);

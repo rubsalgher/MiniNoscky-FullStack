@@ -16,7 +16,7 @@ const VerificarCuenta = () => {
 
     const confirmarCuenta = async () => {
       try {
-        const respuesta = await axios.get(`https://mininoscky-backend.onrender.com/api/usuarios/verificar/${token}`);
+        const respuesta = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/usuarios/verificar/${token}`);
         
         // Marcamos como verificado exitosamente
         yaVerificado.current = true;

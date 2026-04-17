@@ -23,7 +23,7 @@ const Login = () => {
 
     try {
       // Hacemos la petición a la ruta de login del backend
-      const respuesta = await axios.post('https://mininoscky-backend.onrender.com/api/usuarios/login', formData);
+      const respuesta = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/usuarios/login`, formData);
       
       // Guardamos la sesión en el contexto
       login(respuesta.data);

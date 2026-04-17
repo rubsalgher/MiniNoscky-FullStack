@@ -17,10 +17,12 @@ const ProductoDetalle = () => {
   const [tallaActiva, setTallaActiva] = useState('');
   const [errorSeleccion, setErrorSeleccion] = useState('');
 
+  const { agregarAlCarrito } = useCart();
+
   useEffect(() => {
     const obtenerDetalles = async () => {
       try {
-        const respuesta = await axios.get(`https://mininoscky-backend.onrender.com/api/productos/${id}`);
+        const respuesta = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`);
         setProducto(respuesta.data);
         
         // Si el producto tiene colores, autoseleccionamos el primero para que se vea la foto
@@ -81,7 +83,6 @@ const ProductoDetalle = () => {
 
   const imagenSiguiente = () => setIndiceImagenActual((prev) => (prev + 1) % imagenesArr.length);
   const imagenAnterior = () => setIndiceImagenActual((prev) => (prev === 0 ? imagenesArr.length - 1 : prev - 1));
-  const { agregarAlCarrito } = useCart();
   
   // --- FUNCIÓN DEL CANDADO PARA EL CARRITO ---
   const handleAgregarCarrito = () => {

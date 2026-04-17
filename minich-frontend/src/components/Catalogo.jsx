@@ -21,7 +21,7 @@ const Catalogo = () => {
   useEffect(() => {
     const obtenerProductos = async () => {
       try {
-        const { data } = await axios.get('https://mininoscky-backend.onrender.com/api/productos');
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/productos`);
         setProductos(data);
       } catch (error) {
         console.error("Error al cargar productos", error);

@@ -30,7 +30,7 @@ const Registro = () => {
     }
 
     try {
-      const respuesta = await axios.post('https://mininoscky-backend.onrender.com/api/usuarios/registro', formData);
+      const respuesta = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/usuarios/registro`, formData);
       
       // En su lugar, mostramos una alerta avisándole que revise su correo
       alert('¡Cuenta creada con éxito! 🌸\n\n' + respuesta.data.mensaje);

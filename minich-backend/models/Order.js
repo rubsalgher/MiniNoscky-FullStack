@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 const orderSchema = new mongoose.Schema({
   usuario: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
     ref: 'User'
   },
   productos: [

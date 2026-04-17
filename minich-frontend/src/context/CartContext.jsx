@@ -18,7 +18,7 @@ export const CartProvider = ({ children }) => {
       // Si hay usuario pero el carrito está vacío (apenas inicia sesión)
       if (usuario && usuario.token) {
         try {
-          const { data } = await axios.get('https://mininoscky-backend.onrender.com/api/usuarios/carrito', {
+          const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/usuarios/carrito`, {
             headers: { Authorization: `Bearer ${usuario.token}` }
           });
           if (data) setCarrito(data);
@@ -37,7 +37,7 @@ export const CartProvider = ({ children }) => {
 
         try {
           await axios.post(
-            'https://mininoscky-backend.onrender.com/api/usuarios/carrito',
+            `${import.meta.env.VITE_BACKEND_URL}/api/usuarios/carrito`,
             { carrito },
             { headers: { Authorization: `Bearer ${usuario.token}` } }
           );

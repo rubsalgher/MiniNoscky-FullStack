@@ -36,3 +36,23 @@ export const admin = (req, res, next) => {
     res.status(403).json({ error: 'Acceso denegado. Se requiere perfil de administrador.' });
   }
 };
+
+export const protegerOpcional = async (req, res, next) => {
+  let token;
+
+  // Revisamos si trae un token en los headers
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.usuario = await Usuario.findById(decoded.id).select('-password');
+    } catch (error) {
+      console.error("Token inválido en protegerOpcional");
+      // No lanzamos error, simplemente lo ignoramos
+    }
+  }
+
+  // La magia ocurre aquí: NO hay un 'throw new Error' si no hay token.
+  // Dejamos pasar la petición. Si es invitado, req.usuario será 'undefined'.
+  next();
+};

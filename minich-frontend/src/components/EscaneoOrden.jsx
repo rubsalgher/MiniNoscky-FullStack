@@ -30,7 +30,7 @@ const EscaneoOrden = () => {
     const obtenerDetallesOrden = async () => {
       try {
         // Asegúrate de que esta IP sea la tuya correcta
-        const { data } = await axios.get(`https://mininoscky-backend.onrender.com/api/ordenes`, {
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes`, {
             headers: { Authorization: `Bearer ${usuario.token}` }
         });
         
@@ -54,7 +54,7 @@ const EscaneoOrden = () => {
   const confirmarEntrega = async () => {
     setProcesando(true);
     try {
-      await axios.put(`https://mininoscky-backend.onrender.com/api/ordenes/${id}/estado`, 
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes/${id}/estado`, 
         { estado: 'Completado' },
         { headers: { Authorization: `Bearer ${usuario.token}` } }
       );

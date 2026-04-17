@@ -18,7 +18,11 @@ const Checkout = () => {
   const [clientSecret, setClientSecret] = useState("");
   const [guardarDireccion, setGuardarDireccion] = useState(false);
   const [config, setConfig] = useState({ envioHabilitado: false, costoEnvio: 0 });
-  const [direccion, setDireccion] = useState({
+  
+  // 1. Estado unificado para Clientes e Invitados
+  const [datosContacto, setDatosContacto] = useState({
+    nombre: '',
+    email: '',
     calle: '',
     colonia: '',
     ciudad: '',
@@ -26,7 +30,7 @@ const Checkout = () => {
     cp: ''
   });
 
-  // 1. Cargar Configuración de Envío (Admin)
+  // 2. Cargar Configuración de Envío (Admin)
   useEffect(() => {
     const cargarConfig = async () => {
       try {
@@ -39,25 +43,27 @@ const Checkout = () => {
     cargarConfig();
   }, []);
 
-  // 2. Auto-rellenar dirección si el usuario ya tiene una
+  // 3. Auto-rellenar TODO si hay sesión iniciada
   useEffect(() => {
-    if (usuario?.direccion && typeof usuario.direccion === 'object') {
-      setDireccion({
-        calle: usuario.direccion.calle || '',
-        colonia: usuario.direccion.colonia || '',
-        ciudad: usuario.direccion.ciudad || '',
-        estado: usuario.direccion.estado || '',
-        cp: usuario.direccion.cp || ''
+    if (usuario) {
+      setDatosContacto({
+        nombre: `${usuario.nombre || ''} ${usuario.apellidos || ''}`.trim(),
+        email: usuario.email || '',
+        calle: usuario.direccion?.calle || '',
+        colonia: usuario.direccion?.colonia || '',
+        ciudad: usuario.direccion?.ciudad || '',
+        estado: usuario.direccion?.estado || '',
+        cp: usuario.direccion?.cp || ''
       });
     }
   }, [usuario]);
 
-  // 3. Lógica de Cálculos
+  // 4. Lógica de Cálculos
   const subtotal = carrito.reduce((acc, item) => acc + (item.price * item.cantidad), 0);
   const costoEnvioActual = config.envioHabilitado ? config.costoEnvio : 0;
   const total = subtotal + costoEnvioActual;
 
-  // 4. Obtener Intent de Stripe (se dispara cuando el total esté listo)
+  // 5. Obtener Intent de Stripe
   useEffect(() => {
     const obtenerIntent = async () => {
       try {
@@ -71,18 +77,21 @@ const Checkout = () => {
   }, [carrito, total]);
 
   const handleChange = (e) => {
-    setDireccion({ ...direccion, [e.target.name]: e.target.value });
+    setDatosContacto({ ...datosContacto, [e.target.name]: e.target.value });
   };
 
-  const direccionCompleta = () => {
-    return direccion.calle.trim() !== '' && 
-           direccion.colonia.trim() !== '' &&
-           direccion.ciudad.trim() !== '' && 
-           direccion.estado.trim() !== '' && 
-           direccion.cp.trim() !== '';
+  // 6. Validación estricta (exige correo para enviar recibo/QR)
+  const datosCompletos = () => {
+    return datosContacto.nombre.trim() !== '' &&
+           datosContacto.email.trim() !== '' &&
+           datosContacto.email.includes('@') &&
+           datosContacto.calle.trim() !== '' &&
+           datosContacto.colonia.trim() !== '' &&
+           datosContacto.ciudad.trim() !== '' && 
+           datosContacto.estado.trim() !== '' && 
+           datosContacto.cp.trim() !== '';
   };
 
-  // 5. Opciones de Stripe (Pre-llenado de datos)
   const opcionesStripe = {
     clientSecret,
   };
@@ -96,46 +105,73 @@ const Checkout = () => {
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Datos de Entrega 🚚</h2>
         
-        <div className="space-y-4 mb-8">
-          <p className="text-gray-600 font-medium">Nombre: <span className="text-gray-800">{usuario?.nombre} {usuario?.apellidos}</span></p>
-          <p className="text-gray-600 font-medium">Correo: <span className="text-gray-800">{usuario?.email}</span></p>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Campos Inteligentes: Nombre y Correo */}
           <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre Completo</label>
+            <input 
+              type="text" 
+              name="nombre" 
+              value={datosContacto.nombre} 
+              onChange={handleChange} 
+              readOnly={!!usuario} // Se bloquea si está logueado
+              placeholder="Ej. María Pérez" 
+              className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} 
+            />
+          </div>
+          
+          <div className="md:col-span-2 mb-4">
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Correo Electrónico (Para tu recibo)</label>
+            <input 
+              type="email" 
+              name="email" 
+              value={datosContacto.email} 
+              onChange={handleChange} 
+              readOnly={!!usuario} 
+              placeholder="ejemplo@correo.com" 
+              className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} 
+            />
+          </div>
+
+          {/* Campos de Dirección */}
+          <div className="md:col-span-2 border-t pt-4">
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Calle y Número</label>
-            <input type="text" name="calle" value={direccion.calle} onChange={handleChange} placeholder="Ej. Av. Reforma 123" onFocus={(e) => (e.target.placeholder = "")} onBlur={(e) => (e.target.placeholder = "Ej. Av. Reforma 123")} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <input type="text" name="calle" value={datosContacto.calle} onChange={handleChange} placeholder="Ej. Av. Reforma 123" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Colonia</label>
-            <input type="text" name="colonia" value={direccion.colonia} onChange={handleChange} placeholder="Ej. Cazones" onFocus={(e) => (e.target.placeholder = "")} onBlur={(e) => (e.target.placeholder = "Ej. Cazones")} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <input type="text" name="colonia" value={datosContacto.colonia} onChange={handleChange} placeholder="Ej. Cazones" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Ciudad</label>
-            <input type="text" name="ciudad" value={direccion.ciudad} onChange={handleChange} placeholder="Poza Rica" onFocus={(e) => (e.target.placeholder = "")} onBlur={(e) => (e.target.placeholder = "Poza Rica")} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <input type="text" name="ciudad" value={datosContacto.ciudad} onChange={handleChange} placeholder="Poza Rica" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">C.P.</label>
-            <input type="text" name="cp" value={direccion.cp} onChange={handleChange} placeholder="93260" onFocus={(e) => (e.target.placeholder = "")} onBlur={(e) => (e.target.placeholder = "93260")} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <input type="text" name="cp" value={datosContacto.cp} onChange={handleChange} placeholder="93260" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Estado</label>
-            <input type="text" name="estado" value={direccion.estado} onChange={handleChange} placeholder="Veracruz" onFocus={(e) => (e.target.placeholder = "")} onBlur={(e) => (e.target.placeholder = "Veracruz")} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <input type="text" name="estado" value={datosContacto.estado} onChange={handleChange} placeholder="Veracruz" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
           </div>
         </div>
 
-        <div className="mt-6 flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-          <input 
-            type="checkbox" 
-            id="save-address"
-            checked={guardarDireccion}
-            onChange={(e) => setGuardarDireccion(e.target.checked)}
-            className="h-5 w-5 text-mini-accent focus:ring-mini-accent border-gray-300 rounded-lg cursor-pointer"
-          />
-          <label htmlFor="save-address" className="text-sm text-gray-600 font-medium cursor-pointer">
-            Guardar esta dirección para mis próximas compras 🏠
-          </label>
-        </div>
+        {/* Solo mostramos la opción de guardar dirección si el usuario tiene cuenta */}
+        {usuario && (
+          <div className="mt-6 flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            <input 
+              type="checkbox" 
+              id="save-address"
+              checked={guardarDireccion}
+              onChange={(e) => setGuardarDireccion(e.target.checked)}
+              className="h-5 w-5 text-mini-accent focus:ring-mini-accent border-gray-300 rounded-lg cursor-pointer"
+            />
+            <label htmlFor="save-address" className="text-sm text-gray-600 font-medium cursor-pointer">
+              Guardar esta dirección para mis próximas compras 🏠
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Columna Derecha: Resumen Desglosado y Pago */}
@@ -172,14 +208,15 @@ const Checkout = () => {
 
         {/* Módulo de Pago */}
         <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200">
-          {!direccionCompleta() ? (
+          {!datosCompletos() ? (
             <div className="text-center py-4">
-              <p className="text-mini-accent font-bold text-sm italic">🌸 Falta tu dirección</p>
-              <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Completa los datos para habilitar Stripe</p>
+              <p className="text-mini-accent font-bold text-sm italic">🌸 Faltan datos de contacto</p>
+              <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Llena el formulario para habilitar el pago</p>
             </div>
           ) : clientSecret ? (
             <Elements stripe={stripePromise} options={opcionesStripe}>
-              <FormularioPago datosEnvio={direccion} guardarDatos={guardarDireccion} total={total}/>
+              {/* Aquí pasamos todos los datos (incluyendo email) al Formulario de Pago */}
+              <FormularioPago datosEnvio={datosContacto} guardarDatos={guardarDireccion} total={total}/>
             </Elements>
           ) : (
             <div className="flex flex-col items-center py-4">

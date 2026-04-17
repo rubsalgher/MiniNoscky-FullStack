@@ -37,7 +37,7 @@ const Inicio = () => {
   useEffect(() => {
     const cargarCarrusel = async () => {
       try {
-        const res = await axios.get('https://mininoscky-backend.onrender.com/api/settings');
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/settings`);
         if (res.data && res.data.carrusel && res.data.carrusel.productosElegidos) {
           setProductosCarrusel(res.data.carrusel.productosElegidos);
         }

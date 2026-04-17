@@ -25,60 +25,72 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
     setProcesando(true);
     setMensaje(null);
 
-    // 1. Confirmar el pago con Stripe
-    const { paymentIntent, error } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required", // IMPORTANTE: Para que no recargue la página de golpe
-    });
+    // Escudo protector global para que el botón nunca se trabe
+    try {
+      // 1. Confirmar el pago con Stripe
+      const { paymentIntent, error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          // STRIPE REQUIERE ESTO: La URL de tu página de éxito
+          return_url: window.location.origin + "/pago-exitoso",
+          payment_method_data: {
+            billing_details: {
+              name: datosEnvio.nombre,
+              email: datosEnvio.email,
+            }
+          }
+        },
+        redirect: "if_required", // Evita recargas a menos que el banco lo exija
+      });
 
-    if (error) {
-      setMensaje(error.message);
-      setProcesando(false);
-      return;
-    }
+      if (error) {
+        setMensaje(error.message);
+        setProcesando(false);
+        return;
+      }
 
-    // 2. Si el pago fue exitoso, procesamos lo demás
-    if (paymentIntent && paymentIntent.status === "succeeded") {
-      try {
-        // A) GUARDAR DIRECCIÓN SI EL CHECK ESTÁ MARCADO
-        if (guardarDatos) {
-          const respuesta = await axios.put('https://mininoscky-backend.onrender.com/api/usuarios/perfil', datosEnvio, {
-            headers: { Authorization: `Bearer ${usuario.token}` }
-          });
+      // 2. Si el pago fue exitoso, procesamos lo demás
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        
+        // Lógica Inteligente: Si hay usuario mandamos su llave, si no, va vacío (Invitado)
+        const configHeaders = usuario ? { 
+          headers: { Authorization: `Bearer ${usuario.token}` } 
+        } : {};
+
+        // A) GUARDAR DIRECCIÓN (Solo si es usuario registrado)
+        if (guardarDatos && usuario) {
+          const respuesta = await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/usuarios/perfil`, datosEnvio, configHeaders);
           actualizarUsuario(respuesta.data);
         }
 
         // B) REGISTRAR LA ORDEN EN MONGODB
-        // Mapeamos el carrito para que coincida con tu modelo Order.js
         const productosOrden = carrito.map(item => ({
           name: item.name,
           cantidad: item.cantidad,
-          image: item.image || (item.variants && item.variants[0]?.images[0]?.url), // Ajuste según tu estructura
+          image: item.image || (item.variants && item.variants[0]?.images[0]?.url),
           price: item.price,
           productoId: item._id
         }));
 
-        await axios.post('https://mininoscky-backend.onrender.com/api/ordenes', {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes`, {
           productos: productosOrden,
           direccionEnvio: datosEnvio,
+          cliente: { nombre: datosEnvio.nombre, email: datosEnvio.email }, // Clave para los correos
           precioTotal: total,
           resultadoPago: { 
             id: paymentIntent.id, 
             status: paymentIntent.status 
           }
-        }, {
-          headers: { Authorization: `Bearer ${usuario.token}` }
-        });
+        }, configHeaders);
 
         // C) LIMPIEZA FINAL
         vaciarCarrito();
         navigate(`/pago-exitoso`);
-        
-      } catch (err) {
-        console.error("Error al procesar la orden post-pago:", err);
-        // Aunque el pago pasó, avisamos si hubo error en la DB
-        setMensaje("¡Pago exitoso! Pero hubo un detalle al guardar tu pedido. No te preocupes, contacta a soporte.");
       }
+    } catch (err) {
+      console.error("Error global en el pago:", err);
+      // Si Stripe o el servidor fallan críticamente, mostramos esto y destrabamos el botón
+      setMensaje("Ocurrió un error inesperado. Por favor, revisa tus datos o intenta nuevamente.");
     }
 
     setProcesando(false);
@@ -90,9 +102,8 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
         options={{
             defaultValues: {
               billingDetails: {
-                name: `${usuario?.nombre || ''} ${usuario?.apellidos || ''}`.trim(),
-                email: usuario?.email || '',
-                phone: usuario?.telefono || '',
+                name: datosEnvio.nombre,
+                email: datosEnvio.email,
               }
             }
           }}
@@ -104,6 +115,7 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
       )}
 
       <button
+        type="submit"
         disabled={procesando || !stripe || !elements}
         className="w-full bg-mini-accent text-white font-bold py-4 rounded-full shadow-lg hover:bg-pink-400 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
       >
