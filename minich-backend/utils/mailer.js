@@ -78,6 +78,9 @@ export const enviarCorreoCompra = async (emailDestino, nombre, orden) => {
     // Generamos un enlace que apuntará a tu panel admin en React
     const idString = orden._id.toString();
     const urlFrontend = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    console.log("DEBUG: La URL de Frontend que detectó el servidor es:", urlFrontend);
+
     const urlEscanerAdmin = `${urlFrontend}/admin/escanear/${idString}`;
     const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(urlEscanerAdmin)}&format=png`;
 
