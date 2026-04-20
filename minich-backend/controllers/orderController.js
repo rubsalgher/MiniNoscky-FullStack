@@ -111,7 +111,8 @@ export const getTodasLasOrdenes = async (req, res) => {
 // --- ACTUALIZAR EL ESTADO DE UNA ORDEN (SOLO ADMIN) ---
 export const actualizarEstadoOrden = async (req, res) => {
   try {
-    const { estado } = req.body; 
+    // 🌟 NUEVO: Recibimos los datos de rastreo desde el frontend
+    const { estado, guiaEnvio, linkRastreo, paqueteria } = req.body; 
     
     // Seguimos usando populate para traernos los datos si es un usuario registrado
     const orden = await Order.findById(req.params.id).populate('usuario', 'nombre email');
@@ -126,23 +127,32 @@ export const actualizarEstadoOrden = async (req, res) => {
         orden.enviadoEn = Date.now();
       }
 
+      // 🌟 NUEVO: Si nos mandan datos de envío, los guardamos en la orden
+      if (guiaEnvio) orden.guiaEnvio = guiaEnvio;
+      if (linkRastreo) orden.linkRastreo = linkRastreo;
+      if (paqueteria) orden.paqueteria = paqueteria;
+
       const ordenActualizada = await orden.save();
 
-      // DISPARADOR DE CORREO: Si lo marcaste como "Listo para recoger" (y antes no lo estaba)
-      if (estado === 'Listo para recoger' && estadoAnterior !== 'Listo para recoger') {
-        const { enviarCorreoActualizacion } = await import('../utils/mailer.js');
-        
-        // 👇 LÓGICA INTELIGENTE DE CONTACTO 👇
-        // Buscamos el correo y nombre primero en el usuario registrado, y si no existe, en el invitado
-        const emailDestino = orden.usuario ? orden.usuario.email : orden.cliente?.email;
-        const nombreDestino = orden.usuario ? orden.usuario.nombre : orden.cliente?.nombre;
+      // DISPARADOR DE CORREOS
+      const { enviarCorreoActualizacion, enviarCorreoEnvio } = await import('../utils/mailer.js');
+      
+      // LÓGICA INTELIGENTE DE CONTACTO
+      const emailDestino = orden.usuario ? orden.usuario.email : orden.cliente?.email;
+      const nombreDestino = orden.usuario ? orden.usuario.nombre : orden.cliente?.nombre;
 
-        // Si logramos rescatar un correo (de cualquiera de los dos lados), enviamos el mensaje
-        if (emailDestino) {
+      if (emailDestino) {
+        // CASO 1: Listo para Recoger
+        if (estado === 'Listo para recoger' && estadoAnterior !== 'Listo para recoger') {
            await enviarCorreoActualizacion(emailDestino, nombreDestino, ordenActualizada);
-        } else {
-           console.warn(`No se encontró un correo para notificar la orden ${orden._id}`);
         }
+        
+        // 🌟 NUEVO CASO 2: Enviado
+        if (estado === 'Enviado' && estadoAnterior !== 'Enviado') {
+           await enviarCorreoEnvio(emailDestino, nombreDestino, ordenActualizada);
+        }
+      } else {
+         console.warn(`No se encontró un correo para notificar la orden ${orden._id}`);
       }
 
       res.json(ordenActualizada);

@@ -72,7 +72,15 @@ const orderSchema = new mongoose.Schema({
   },
   enviadoEn: {
     type: Date
-  }
+  },
+  metodoEntrega: { 
+  type: String, 
+  enum: ['recoleccion', 'envio'], 
+  required: true 
+},
+  guiaEnvio: { type: String, default: '' },
+  linkRastreo: { type: String, default: '' },
+  paqueteria: { type: String, default: '' }
 }, {
   timestamps: true
 });

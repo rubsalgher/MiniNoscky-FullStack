@@ -16,6 +16,9 @@ const Admin = () => {
   const [modalResurtir, setModalResurtir] = useState({ activo: false, producto: null });
   const [stockTemporal, setStockTemporal] = useState([]);
 
+  const [modalEnvio, setModalEnvio] = useState({ activo: false, ordenId: null });
+  const [datosRastreo, setDatosRastreo] = useState({ paqueteria: '', guiaEnvio: '', linkRastreo: '' });
+
   const [ajustesTienda, setAjustesTienda] = useState({ 
     envioHabilitado: false, 
     costoEnvio: 0,
@@ -112,6 +115,13 @@ const Admin = () => {
   };
 
   const handleCambiarEstadoOrden = async (ordenId, nuevoEstado) => {
+    
+    if (nuevoEstado === 'Enviado') {
+      setModalEnvio({ activo: true, ordenId });
+      setDatosRastreo({ paqueteria: '', guiaEnvio: '', linkRastreo: '' });
+      return;
+    }
+
     setOrdenesGlobales(ordenesActuales => 
       ordenesActuales.map(orden => 
         orden._id === ordenId ? { ...orden, estado: nuevoEstado } : orden
@@ -127,6 +137,50 @@ const Admin = () => {
     } catch (error) {
       setMensaje({ texto: 'Error al actualizar orden', tipo: 'error' });
       cargarOrdenesGlobales(); 
+    }
+  };
+
+  const confirmarEnvioOrden = async () => {
+    const { ordenId } = modalEnvio;
+    const nuevoEstado = 'Enviado';
+
+    // Validación básica
+    if (!datosRastreo.paqueteria || !datosRastreo.guiaEnvio) {
+      alert("Por favor, ingresa al menos la paquetería y el número de guía.");
+      return;
+    }
+
+    // 1. Actualizamos UI temporalmente
+    setOrdenesGlobales(ordenesActuales => 
+      ordenesActuales.map(orden => 
+        orden._id === ordenId ? { 
+          ...orden, 
+          estado: nuevoEstado, 
+          ...datosRastreo // Agregamos visualmente los datos
+        } : orden
+      )
+    );
+
+    try {
+      // 2. Mandamos el estado "Enviado" MÁS los datos de rastreo al backend
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes/${ordenId}/estado`, 
+        { 
+          estado: nuevoEstado,
+          paqueteria: datosRastreo.paqueteria,
+          guiaEnvio: datosRastreo.guiaEnvio,
+          linkRastreo: datosRastreo.linkRastreo
+        },
+        { headers: { Authorization: `Bearer ${usuario.token}` } }
+      );
+      
+      setMensaje({ texto: 'Orden enviada y cliente notificado 🚀', tipo: 'exito' });
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      setModalEnvio({ activo: false, ordenId: null }); // Cerramos modal
+      
+    } catch (error) {
+      setMensaje({ texto: 'Error al procesar el envío', tipo: 'error' });
+      cargarOrdenesGlobales(); 
+      setModalEnvio({ activo: false, ordenId: null });
     }
   };
 
@@ -550,7 +604,11 @@ const Admin = () => {
                              className="text-xs border border-gray-300 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-mini-accent bg-white cursor-pointer"
                            >
                              <option value="Pendiente">Pendiente</option>
-                             <option value="Listo para recoger">Listo para recoger</option>
+                             {orden.metodoEntrega === 'envio' ? (
+                                <option value="Enviado">Enviado 🚚</option>
+                              ) : (
+                                <option value="Listo para recoger">Listo para recoger</option>
+                              )}
                              <option value="Completado">Completado</option>
                            </select>
                          </td>
@@ -683,7 +741,66 @@ const Admin = () => {
           </div>
         </div>
       )}
+      {/* 👇 MODAL DE RASTREO DE ENVÍO 👇 */}
+      {modalEnvio.activo && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border-t-4 border-mini-accent">
+            <div className="text-center mb-6">
+              <span className="text-4xl mb-2 block">🚚</span>
+              <h3 className="text-xl font-black text-gray-800">Confirmar Envío</h3>
+              <p className="text-sm text-gray-500 mt-1">Ingresa los datos para notificar al cliente.</p>
+            </div>
 
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Paquetería *</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. FedEx, DHL, Estafeta"
+                  value={datosRastreo.paqueteria}
+                  onChange={(e) => setDatosRastreo({...datosRastreo, paqueteria: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Número de Guía *</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. 1234567890"
+                  value={datosRastreo.guiaEnvio}
+                  onChange={(e) => setDatosRastreo({...datosRastreo, guiaEnvio: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50 font-mono font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Link de Rastreo (Opcional)</label>
+                <input 
+                  type="url" 
+                  placeholder="https://www.dhl.com/rastreo..."
+                  value={datosRastreo.linkRastreo}
+                  onChange={(e) => setDatosRastreo({...datosRastreo, linkRastreo: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-6 mt-6 border-t border-gray-100">
+              <button 
+                onClick={() => setModalEnvio({ activo: false, ordenId: null })}
+                className="px-6 py-2.5 rounded-full text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmarEnvioOrden}
+                className="px-6 py-2.5 rounded-full text-sm font-bold bg-mini-accent text-white hover:bg-pink-400 transition-colors shadow-lg flex items-center gap-2"
+              >
+                Guardar y Avisar 🚀
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
