@@ -2,18 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom'; // Asegúrate de importar useNavigate si no lo tenías
+import { useNavigate } from 'react-router-dom';
 
 const Admin = () => {
-  const navigate = useNavigate(); // Necesario para la redirección en el useEffect
-  // --- NAVEGACIÓN: Ahora con CINCO opciones ---
-  const [vistaActiva, setVistaActiva] = useState('crear'); // 'crear', 'lista', 'ajustes', 'carrusel', 'ordenes'
+  const navigate = useNavigate();
+  const [vistaActiva, setVistaActiva] = useState('crear');
 
   const [ordenesGlobales, setOrdenesGlobales] = useState([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
   const [imagenExpandida, setImagenExpandida] = useState(null);
+  
+  // ESTADOS PARA EL MODAL DE RESURTIR
+  const [modalResurtir, setModalResurtir] = useState({ activo: false, producto: null });
+  const [stockTemporal, setStockTemporal] = useState([]);
 
-  // --- ESTADOS PARA AJUSTES GENERALES (Envío y Carrusel) ---
   const [ajustesTienda, setAjustesTienda] = useState({ 
     envioHabilitado: false, 
     costoEnvio: 0,
@@ -21,12 +23,10 @@ const Admin = () => {
   });
   const [cargandoAjustes, setCargandoAjustes] = useState(false);
 
-  // --- ESTADOS PARA LA LISTA DE PRODUCTOS Y MODAL ---
   const [listaProductos, setListaProductos] = useState([]);
   const [cargandoLista, setCargandoLista] = useState(false);
   const [mostrarModal, setMostrarModal] = useState(false);
 
-  // --- ESTADOS PARA EL FORMULARIO ---
   const [producto, setProducto] = useState({ name: '', description: '', category: 'Regalos' });
   const [estilos, setEstilos] = useState([
     { color: '', imageFiles: [], tallas: [{ size: '', sku: '', price: '', stock: '' }] }
@@ -36,7 +36,6 @@ const Admin = () => {
 
   const { usuario } = useAuth();
 
-  // --- FUNCIONES DE CARGA ---
   const cargarAjustes = async () => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/settings`);
@@ -75,21 +74,16 @@ const Admin = () => {
     }
   };
 
-  // --- EFECTO PRINCIPAL (Punto 3 integrado) ---
   useEffect(() => {
-    // Si no es admin, lo mandamos a inicio (seguridad básica en frontend)
     if (!usuario || usuario.rol !== 'admin') {
       navigate('/');
     } else {
-      // Cargar datos según la pestaña activa, o cargarlos todos si lo prefieres.
-      // Para optimizar, solo cargamos lo necesario según la vista.
       if (vistaActiva === 'lista' || vistaActiva === 'carrusel') cargarProductos();
       if (vistaActiva === 'ajustes' || vistaActiva === 'carrusel') cargarAjustes();
-      if (vistaActiva === 'ordenes') cargarOrdenesGlobales(); // Carga las órdenes cuando entras a la pestaña
+      if (vistaActiva === 'ordenes') cargarOrdenesGlobales();
     }
   }, [vistaActiva, usuario, navigate]);
 
-  // --- FUNCIÓN: GUARDAR AJUSTES ---
   const guardarAjustes = async () => {
     setCargandoAjustes(true);
     try {
@@ -103,10 +97,8 @@ const Admin = () => {
     }
   };
 
-  // --- FUNCIONES DEL CARRUSEL ---
   const toggleProductoCarrusel = (idProducto) => {
     const elegidosActuales = ajustesTienda.carrusel.productosElegidos.map(p => typeof p === 'string' ? p : p._id);
-    
     if (elegidosActuales.includes(idProducto)) {
       const nuevosElegidos = elegidosActuales.filter(id => id !== idProducto);
       setAjustesTienda({ ...ajustesTienda, carrusel: { ...ajustesTienda.carrusel, productosElegidos: nuevosElegidos } });
@@ -119,32 +111,25 @@ const Admin = () => {
     }
   };
 
-  // --- FUNCIÓN: CAMBIAR ESTADO DE ORDEN (Punto 4) ---
   const handleCambiarEstadoOrden = async (ordenId, nuevoEstado) => {
-    // 1. Cambiamos el texto en la pantalla AL INSTANTE para que no se trabe
     setOrdenesGlobales(ordenesActuales => 
       ordenesActuales.map(orden => 
         orden._id === ordenId ? { ...orden, estado: nuevoEstado } : orden
       )
     );
-
     try {
-      // 2. Avisamos silenciosamente a la Base de Datos y disparamos el correo
       await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes/${ordenId}/estado`, 
         { estado: nuevoEstado },
         { headers: { Authorization: `Bearer ${usuario.token}` } }
       );
-      
       setMensaje({ texto: 'Estado de orden actualizado 📦', tipo: 'exito' });
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
     } catch (error) {
-      // 3. Si por alguna razón falla el internet, regresamos al estado anterior
       setMensaje({ texto: 'Error al actualizar orden', tipo: 'error' });
       cargarOrdenesGlobales(); 
     }
   };
 
-  // (Funciones originales de productos)
   const eliminarProducto = async (id, nombre) => {
     const confirmacion = window.confirm(`¿Estás seguro de que deseas eliminar "${nombre}"?`);
     if (confirmacion) {
@@ -156,6 +141,28 @@ const Admin = () => {
       } catch (error) {
         alert('Hubo un problema al eliminar.');
       }
+    }
+  };
+
+  // FUNCIÓN PARA GUARDAR EL RESURTIDO
+  const handleGuardarResurtido = async () => {
+    try {
+      const configHeaders = { headers: { Authorization: `Bearer ${usuario.token}` } };
+      const productoActualizado = {
+        ...modalResurtir.producto,
+        variants: stockTemporal
+      };
+      await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/api/productos/${modalResurtir.producto._id}`, 
+        productoActualizado, 
+        configHeaders
+      );
+      setModalResurtir({ activo: false, producto: null });
+      cargarProductos(); // Refresca la tabla automáticamente
+      alert("¡Stock actualizado correctamente! 📦");
+    } catch (error) {
+      console.error("Error al actualizar stock:", error);
+      alert("Hubo un error al guardar el inventario.");
     }
   };
 
@@ -208,45 +215,17 @@ const Admin = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 relative">
-      
-      {/* --- NAVEGACIÓN DE PESTAÑAS (Punto 5 integrado) --- */}
       <div className="flex flex-wrap justify-center gap-4 mb-8">
-        <button 
-          onClick={() => setVistaActiva('crear')}
-          className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'crear' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}
-        >
-          Subir Producto ✨
-        </button>
-        <button 
-          onClick={() => setVistaActiva('lista')}
-          className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'lista' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}
-        >
-          Inventario 📦
-        </button>
-        <button 
-          onClick={() => setVistaActiva('ajustes')}
-          className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'ajustes' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}
-        >
-          Ajustes de Envío 🚚
-        </button>
-        <button 
-          onClick={() => setVistaActiva('carrusel')}
-          className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'carrusel' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}
-        >
-          Carrusel Inicio 🖼️
-        </button>
-        {/* NUEVO BOTÓN PARA ÓRDENES */}
-        <button 
-          onClick={() => setVistaActiva('ordenes')}
-          className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'ordenes' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}
-        >
-          Órdenes y Ventas 🧾
-        </button>
+        <button onClick={() => setVistaActiva('crear')} className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'crear' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}>Subir Producto ✨</button>
+        <button onClick={() => setVistaActiva('lista')} className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'lista' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}>Inventario 📦</button>
+        <button onClick={() => setVistaActiva('ajustes')} className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'ajustes' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}>Ajustes de Envío 🚚</button>
+        <button onClick={() => setVistaActiva('carrusel')} className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'carrusel' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}>Carrusel Inicio 🖼️</button>
+        <button onClick={() => setVistaActiva('ordenes')} className={`px-6 py-3 rounded-full font-bold transition-all ${vistaActiva === 'ordenes' ? 'bg-mini-accent text-white shadow-md' : 'bg-white text-gray-500 border border-mini-pink/20 hover:bg-mini-pink/10'}`}>Órdenes y Ventas 🧾</button>
       </div>
 
       <div className="bg-white p-8 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-mini-pink/30">
         
-        {/* VISTA 1: CREAR (Se mantiene igual) */}
+        {/* VISTA 1: CREAR */}
         {vistaActiva === 'crear' && (
           <div className="animate-fade-in">
              <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Subir Nuevo Producto</h2>
@@ -269,7 +248,7 @@ const Admin = () => {
                       <select name="category" value={producto.category} onChange={handleProductoChange} className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-white">
                         <option value="Regalos">Regalos</option>
                         <option value="Accesorios">Accesorios</option>
-                        <option value="Papelería">Papelería</option>
+                        <option value="Importados">Importados</option>
                       </select>
                     </div>
                   </div>
@@ -347,7 +326,7 @@ const Admin = () => {
           </div>
         )}
 
-        {/* VISTA 2: INVENTARIO MEJORADO */}
+        {/* VISTA 2: INVENTARIO */}
         {vistaActiva === 'lista' && (
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Gestionar Inventario 📦</h2>
@@ -370,9 +349,7 @@ const Admin = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {listaProductos.map(prod => {
-                      // Sumamos el stock de TODAS las variantes (colores/tallas) de este producto
                       const stockTotal = prod.variants?.reduce((suma, variante) => suma + (Number(variante.stock) || 0), 0) || 0;
-                      // Sacamos la foto principal para que se vea más bonito
                       const imagenUrl = prod.variants?.[0]?.images?.[0]?.url || 'https://via.placeholder.com/50';
 
                       return (
@@ -385,22 +362,25 @@ const Admin = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {/* Etiqueta de color según la cantidad de stock */}
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              stockTotal === 0 ? 'bg-red-100 text-red-600' : 
-                              stockTotal < 5 ? 'bg-yellow-100 text-yellow-700' : 
-                              'bg-green-100 text-green-700'
-                            }`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${stockTotal === 0 ? 'bg-red-100 text-red-600' : stockTotal < 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
                               {stockTotal} pzas
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => eliminarProducto(prod._id, prod.name)} 
-                              className="text-red-400 hover:text-red-600 font-bold bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg transition-colors"
-                            >
-                              Eliminar
-                            </button>
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end gap-2 items-center">
+                              <button 
+                                onClick={() => {
+                                  setModalResurtir({ activo: true, producto: prod });
+                                  setStockTemporal(prod.variants ? prod.variants.map(v => ({ ...v })) : []);
+                                }}
+                                className="text-blue-500 hover:text-blue-700 font-bold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                Resurtir <span className="text-[10px]">📦</span>
+                              </button>
+                              <button onClick={() => eliminarProducto(prod._id, prod.name)} className="text-red-400 hover:text-red-600 font-bold bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg transition-colors">
+                                Eliminar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -412,7 +392,7 @@ const Admin = () => {
           </div>
         )}
 
-        {/* VISTA 3: AJUSTES DE ENVÍO (Se mantiene igual) */}
+        {/* VISTA 3: AJUSTES DE ENVÍO */}
         {vistaActiva === 'ajustes' && (
           <div className="animate-fade-in max-w-xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Ajustes de la Tienda</h2>
@@ -422,42 +402,24 @@ const Admin = () => {
                   <p className="font-bold text-gray-800">¿Cobrar envío a domicilio?</p>
                   <p className="text-xs text-gray-500">Si se desactiva, aparecerá como "Entrega en Local".</p>
                 </div>
-                <input 
-                  type="checkbox" 
-                  className="w-6 h-6 accent-mini-accent cursor-pointer"
-                  checked={ajustesTienda.envioHabilitado}
-                  onChange={(e) => setAjustesTienda({...ajustesTienda, envioHabilitado: e.target.checked})}
-                />
+                <input type="checkbox" className="w-6 h-6 accent-mini-accent cursor-pointer" checked={ajustesTienda.envioHabilitado} onChange={(e) => setAjustesTienda({...ajustesTienda, envioHabilitado: e.target.checked})} />
               </div>
 
               {ajustesTienda.envioHabilitado && (
                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Costo de Envío Fijo (MXN)</label>
-                  <input 
-                    type="number" 
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-mini-accent"
-                    value={ajustesTienda.costoEnvio === 0 ? "" : ajustesTienda.costoEnvio}
-                    placeholder="0"
-                    onChange={(e) => {
-                      const valor = e.target.value;
-                      setAjustesTienda({ ...ajustesTienda, costoEnvio: valor === "" ? 0 : Number(valor) });
-                    }}
-                  />
+                  <input type="number" className="w-full p-4 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-mini-accent" value={ajustesTienda.costoEnvio === 0 ? "" : ajustesTienda.costoEnvio} placeholder="0" onChange={(e) => { const valor = e.target.value; setAjustesTienda({ ...ajustesTienda, costoEnvio: valor === "" ? 0 : Number(valor) }); }} />
                 </div>
               )}
 
-              <button 
-                onClick={guardarAjustes}
-                disabled={cargandoAjustes}
-                className="w-full py-4 bg-mini-accent text-white font-bold rounded-full shadow-lg hover:bg-pink-400 transition-all disabled:opacity-50"
-              >
+              <button onClick={guardarAjustes} disabled={cargandoAjustes} className="w-full py-4 bg-mini-accent text-white font-bold rounded-full shadow-lg hover:bg-pink-400 transition-all disabled:opacity-50">
                 {cargandoAjustes ? "Guardando cambios..." : "Guardar Configuración ✨"}
               </button>
             </div>
           </div>
         )}
 
-        {/* VISTA 4: CARRUSEL INICIO (Se mantiene igual) */}
+        {/* VISTA 4: CARRUSEL INICIO */}
         {vistaActiva === 'carrusel' && (
           <div className="animate-fade-in max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Configurar Carrusel de Inicio</h2>
@@ -466,28 +428,18 @@ const Admin = () => {
             <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Cantidad a mostrar</label>
-                <select 
-                  value={ajustesTienda.carrusel.limite} 
-                  onChange={(e) => setAjustesTienda({...ajustesTienda, carrusel: {...ajustesTienda.carrusel, limite: Number(e.target.value)}})}
-                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white"
-                >
+                <select value={ajustesTienda.carrusel.limite} onChange={(e) => setAjustesTienda({...ajustesTienda, carrusel: {...ajustesTienda.carrusel, limite: Number(e.target.value)}})} className="px-4 py-2 rounded-xl border border-gray-200 bg-white">
                   <option value={3}>3 Productos</option>
                   <option value={4}>4 Productos</option>
                   <option value={5}>5 Productos</option>
                 </select>
               </div>
-              <button 
-                onClick={() => setMostrarModal(true)}
-                className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-black transition-colors"
-              >
+              <button onClick={() => setMostrarModal(true)} className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-black transition-colors">
                 🔍 Seleccionar Productos
               </button>
             </div>
 
-            {/* Cuadrícula de previsualización de seleccionados */}
-            <h3 className="font-bold text-gray-700 mb-4">
-              Productos seleccionados ({ajustesTienda.carrusel.productosElegidos.length} de {ajustesTienda.carrusel.limite}):
-            </h3>
+            <h3 className="font-bold text-gray-700 mb-4">Productos seleccionados ({ajustesTienda.carrusel.productosElegidos.length} de {ajustesTienda.carrusel.limite}):</h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
               {ajustesTienda.carrusel.productosElegidos.length === 0 ? (
                 <p className="col-span-full text-gray-400 italic">Aún no has seleccionado productos.</p>
@@ -507,22 +459,17 @@ const Admin = () => {
               )}
             </div>
 
-            <button 
-              onClick={guardarAjustes}
-              disabled={cargandoAjustes}
-              className="w-full py-4 bg-mini-accent text-white font-bold rounded-full shadow-lg hover:bg-pink-400 transition-all disabled:opacity-50"
-            >
+            <button onClick={guardarAjustes} disabled={cargandoAjustes} className="w-full py-4 bg-mini-accent text-white font-bold rounded-full shadow-lg hover:bg-pink-400 transition-all disabled:opacity-50">
               {cargandoAjustes ? "Guardando..." : "Guardar Carrusel ✨"}
             </button>
           </div>
         )}
 
-        {/* --- VISTA 5: GESTIÓN DE ÓRDENES (Punto 6 integrado) --- */}
+        {/* VISTA 5: GESTIÓN DE ÓRDENES */}
         {vistaActiva === 'ordenes' && (
           <div className="animate-fade-in">
              <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Gestión de Órdenes 📦</h2>
              
-             {/* Mensaje visual para el cambio de estado */}
              {mensaje.texto && (
                <div className={`p-4 mb-6 text-center rounded-2xl font-bold border ${mensaje.tipo === 'exito' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
                  {mensaje.texto}
@@ -557,26 +504,17 @@ const Admin = () => {
                          </td>
                          <td className="px-6 py-4">
                           {orden.usuario ? (
-                            /* 1. Escenario: Cliente Registrado */
                             <>
-                              <span className="block font-bold text-gray-800">
-                                {orden.usuario.nombre} {orden.usuario.apellidos || ''}
-                              </span>
+                              <span className="block font-bold text-gray-800">{orden.usuario.nombre} {orden.usuario.apellidos || ''}</span>
                               <span className="text-xs text-gray-400">{orden.usuario.email}</span>
                             </>
                           ) : orden.cliente ? (
-                            /* 2. Escenario: Invitado (La nueva lógica) */
                             <>
-                              <span className="block font-bold text-gray-600 italic">
-                                {orden.cliente.nombre}
-                              </span>
+                              <span className="block font-bold text-gray-600 italic">{orden.cliente.nombre}</span>
                               <span className="text-xs text-gray-400 block">{orden.cliente.email}</span>
-                              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full mt-1 inline-block border border-gray-200">
-                                Invitado
-                              </span>
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full mt-1 inline-block border border-gray-200">Invitado</span>
                             </>
                           ) : (
-                            /* 3. Escenario: Fallback / Error / Realmente Eliminado */
                             <span className="text-gray-400 italic">Usuario Eliminado</span>
                           )}
                         </td>
@@ -584,7 +522,6 @@ const Admin = () => {
                           <div className="space-y-3">
                             {orden.productos.map((item, index) => (
                               <div key={index} className="flex items-center gap-3">
-                                {/* Cajita de la Imagen en miniatura */}
                                 <div className="flex-shrink-0 w-12 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
                                   {item.image ? (
                                     <img src={item.image} alt={item.name} className="w-full h-full object-contain cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setImagenExpandida(item.image)} />
@@ -592,27 +529,17 @@ const Admin = () => {
                                     <span className="text-[8px] text-gray-400 uppercase tracking-wider text-center">Sin<br/>Foto</span>
                                   )}
                                 </div>
-                                {/* Datos del producto */}
                                 <div className="flex-1 text-xs">
                                   <p className="font-bold text-gray-800 line-clamp-2">{item.name}</p>
-                                  <p className="text-gray-500 mt-0.5">
-                                    Cant: <span className="font-medium text-gray-700">{item.cantidad}</span>
-                                  </p>
+                                  <p className="text-gray-500 mt-0.5">Cant: <span className="font-medium text-gray-700">{item.cantidad}</span></p>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </td>
-
-                         <td className="px-6 py-4 font-bold text-gray-800">
-                           ${orden.precioTotal ? orden.precioTotal.toLocaleString() : '0'}
-                         </td>
+                         <td className="px-6 py-4 font-bold text-gray-800">${orden.precioTotal ? orden.precioTotal.toLocaleString() : '0'}</td>
                          <td className="px-6 py-4 text-center">
-                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                             orden.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' : 
-                             orden.estado === 'Listo para recoger' ? 'bg-blue-100 text-blue-700' :
-                             orden.estado === 'Completado' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                           }`}>
+                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${orden.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' : orden.estado === 'Listo para recoger' ? 'bg-blue-100 text-blue-700' : orden.estado === 'Completado' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                              {orden.estado || 'Pendiente'}
                            </span>
                          </td>
@@ -633,57 +560,26 @@ const Admin = () => {
                  </table>
                </div>
              )}
-             {imagenExpandida && (
-              <div 
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out animate-fade-in"
-                onClick={() => setImagenExpandida(null)} // Cierra al hacer clic en el fondo oscuro
-              >
-                <div className="relative max-w-3xl max-h-[90vh]">
-                  {/* Botón de Cerrar (X) */}
-                  <button 
-                    className="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg hover:bg-gray-200 z-10"
-                    onClick={() => setImagenExpandida(null)}
-                  >
-                    ✕
-                  </button>
-                  
-                  {/* La imagen en grande */}
-                  <img 
-                    src={imagenExpandida} 
-                    alt="Producto ampliado" 
-                    className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl cursor-default"
-                    onClick={(e) => e.stopPropagation()} // Evita que se cierre si das clic en la foto misma
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
-
       </div>
 
-      {/* --- MODAL PARA SELECCIONAR PRODUCTOS (Se mantiene igual) --- */}
+      {/* --- MODAL PARA SELECCIONAR PRODUCTOS CARRUSEL --- */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden animate-fade-in">
-            {/* Header del Modal */}
             <div className="p-6 border-b flex justify-between items-center bg-gray-50">
               <h3 className="text-xl font-bold text-gray-800">Selecciona para el Carrusel</h3>
               <button onClick={() => setMostrarModal(false)} className="text-gray-400 hover:text-gray-800 font-bold text-xl">✕</button>
             </div>
-            
-            {/* Cuerpo del Modal (Scrollable) */}
             <div className="p-6 overflow-y-auto flex-grow bg-white">
-              <p className="text-sm text-gray-500 mb-4">
-                Puedes elegir hasta <span className="font-bold text-mini-accent">{ajustesTienda.carrusel.limite}</span> productos.
-              </p>
+              <p className="text-sm text-gray-500 mb-4">Puedes elegir hasta <span className="font-bold text-mini-accent">{ajustesTienda.carrusel.limite}</span> productos.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {listaProductos.map(prod => {
                   const elegidosIds = ajustesTienda.carrusel.productosElegidos.map(p => typeof p === 'string' ? p : p._id);
                   const estaSeleccionado = elegidosIds.includes(prod._id);
                   const limiteAlcanzado = elegidosIds.length >= ajustesTienda.carrusel.limite;
                   const imagenUrl = prod.variants?.[0]?.images?.[0]?.url || 'https://via.placeholder.com/150';
-
                   return (
                     <div 
                       key={prod._id} 
@@ -703,11 +599,85 @@ const Admin = () => {
                 })}
               </div>
             </div>
-
-            {/* Footer del Modal */}
             <div className="p-6 border-t bg-gray-50 flex justify-end">
-              <button onClick={() => setMostrarModal(false)} className="bg-mini-accent text-white px-8 py-3 rounded-full font-bold shadow-md hover:bg-pink-400">
-                Aceptar
+              <button onClick={() => setMostrarModal(false)} className="bg-mini-accent text-white px-8 py-3 rounded-full font-bold shadow-md hover:bg-pink-400">Aceptar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL PARA VER IMAGEN DE ORDEN AMPLIADA --- */}
+      {imagenExpandida && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out animate-fade-in"
+          onClick={() => setImagenExpandida(null)} 
+        >
+          <div className="relative max-w-3xl max-h-[90vh]">
+            <button 
+              className="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg hover:bg-gray-200 z-10"
+              onClick={() => setImagenExpandida(null)}
+            >
+              ✕
+            </button>
+            <img 
+              src={imagenExpandida} 
+              alt="Producto ampliado" 
+              className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 👇 AQUÍ ESTÁ: MODAL PARA RESURTIR STOCK 👇 */}
+      {modalResurtir.activo && modalResurtir.producto && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Resurtir Inventario</h3>
+            <p className="text-sm text-gray-500 mb-6 border-b pb-4">
+              Producto: <strong className="text-mini-accent">{modalResurtir.producto.name}</strong>
+            </p>
+
+            <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2">
+              {stockTemporal.map((variante, index) => (
+                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-sm text-gray-700">
+                      {variante.color || variante.size ? `${variante.color || ''} ${variante.size || ''}` : 'Pieza Única'}
+                    </span>
+                    <span className="text-xs text-gray-400">SKU: {variante.sku || 'Sin SKU'}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-gray-500">Stock:</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={variante.stock} 
+                      onChange={(e) => {
+                        const nuevoArreglo = [...stockTemporal];
+                        nuevoArreglo[index].stock = parseInt(e.target.value) || 0;
+                        setStockTemporal(nuevoArreglo);
+                      }}
+                      className="w-20 p-2 border border-gray-300 rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-mini-accent"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t">
+              <button 
+                onClick={() => setModalResurtir({ activo: false, producto: null })}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleGuardarResurtido}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-mini-accent text-white hover:bg-pink-400 transition-colors shadow-lg"
+              >
+                Guardar Cambios
               </button>
             </div>
           </div>

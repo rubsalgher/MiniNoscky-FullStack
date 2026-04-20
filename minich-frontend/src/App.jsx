@@ -116,13 +116,26 @@ const Inicio = () => {
                 const imagenUrl = prod.variants?.[0]?.images?.[0]?.url || 'https://via.placeholder.com/300';
                 const precio = prod.variants?.[0]?.price || 0;
 
+                const stockTotal = prod.variants?.reduce((acc, variant) => acc + (variant.stock || 0), 0) || 0;
+
                 return (
                   <Link 
                     to={`/producto/${prod._id}`} 
                     key={prod._id}
                     className="flex-none w-64 md:w-72 bg-white rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:shadow-xl border border-gray-100 transition-all duration-300 snap-center group/card"
                   >
-                    <div className="overflow-hidden rounded-t-3xl h-64 bg-gray-50">
+                    <div className="relative overflow-hidden rounded-t-3xl h-64 bg-gray-50">
+                      
+                      {stockTotal === 0 ? (
+                        <div className="absolute top-4 right-4 z-10 bg-red-500/90 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
+                          Agotado
+                        </div>
+                      ) : (
+                        <div className="absolute top-4 right-4 z-10 bg-green-500/90 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
+                          {stockTotal} {stockTotal === 1 ? 'Pieza' : 'Piezas'}
+                        </div>
+                      )}
+                      
                       <img 
                         src={imagenUrl} 
                         alt={prod.name} 

@@ -16,7 +16,7 @@ const Catalogo = () => {
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState('relevancia');
 
-  const categorias = ['Todos', 'Regalos', 'Accesorios', 'Papelería'];
+  const categorias = ['Todos', 'Regalos', 'Accesorios', 'Importados'];
 
   useEffect(() => {
     const obtenerProductos = async () => {

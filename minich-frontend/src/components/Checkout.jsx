@@ -1,4 +1,3 @@
-// src/components/Checkout.jsx
 import React, { useState, useEffect } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -19,7 +18,9 @@ const Checkout = () => {
   const [guardarDireccion, setGuardarDireccion] = useState(false);
   const [config, setConfig] = useState({ envioHabilitado: false, costoEnvio: 0 });
   
-  // 1. Estado unificado para Clientes e Invitados
+  // 1. Estado para obligar a elegir
+  const [metodoEntrega, setMetodoEntrega] = useState('');
+
   const [datosContacto, setDatosContacto] = useState({
     nombre: '',
     email: '',
@@ -30,7 +31,6 @@ const Checkout = () => {
     cp: ''
   });
 
-  // 2. Cargar Configuración de Envío (Admin)
   useEffect(() => {
     const cargarConfig = async () => {
       try {
@@ -43,7 +43,6 @@ const Checkout = () => {
     cargarConfig();
   }, []);
 
-  // 3. Auto-rellenar TODO si hay sesión iniciada
   useEffect(() => {
     if (usuario) {
       setDatosContacto({
@@ -58,12 +57,11 @@ const Checkout = () => {
     }
   }, [usuario]);
 
-  // 4. Lógica de Cálculos
+  // 👇 2. CÁLCULO DINÁMICO: Solo cobra envío si elige "envio"
   const subtotal = carrito.reduce((acc, item) => acc + (item.price * item.cantidad), 0);
-  const costoEnvioActual = config.envioHabilitado ? config.costoEnvio : 0;
+  const costoEnvioActual = (config.envioHabilitado && metodoEntrega === 'envio') ? config.costoEnvio : 0;
   const total = subtotal + costoEnvioActual;
 
-  // 5. Obtener Intent de Stripe
   useEffect(() => {
     const obtenerIntent = async () => {
       try {
@@ -74,27 +72,38 @@ const Checkout = () => {
       }
     };
     if (carrito.length > 0 && total > 0) obtenerIntent();
-  }, [carrito, total]);
+  }, [carrito, total]); // <- Al cambiar el total, Stripe genera un nuevo ticket de cobro
 
   const handleChange = (e) => {
     setDatosContacto({ ...datosContacto, [e.target.name]: e.target.value });
   };
 
-  // 6. Validación estricta (exige correo para enviar recibo/QR)
+  // 👇 3. VALIDACIÓN INTELIGENTE: Depende de lo que elijan
   const datosCompletos = () => {
-    return datosContacto.nombre.trim() !== '' &&
-           datosContacto.email.trim() !== '' &&
-           datosContacto.email.includes('@') &&
-           datosContacto.calle.trim() !== '' &&
-           datosContacto.colonia.trim() !== '' &&
-           datosContacto.ciudad.trim() !== '' && 
-           datosContacto.estado.trim() !== '' && 
-           datosContacto.cp.trim() !== '';
+    // Si no han elegido método, bloqueamos el pago
+    if (!metodoEntrega) return false;
+
+    // Nombre y correo siempre son obligatorios
+    const basicoValido = datosContacto.nombre.trim() !== '' && 
+                         datosContacto.email.trim() !== '' && 
+                         datosContacto.email.includes('@');
+    
+    if (!basicoValido) return false;
+
+    // Si es envío, exigimos la dirección completa
+    if (metodoEntrega === 'envio') {
+      return datosContacto.calle.trim() !== '' &&
+             datosContacto.colonia.trim() !== '' &&
+             datosContacto.ciudad.trim() !== '' && 
+             datosContacto.estado.trim() !== '' && 
+             datosContacto.cp.trim() !== '';
+    }
+
+    // Si es recolección, con el nombre y correo basta
+    return true;
   };
 
-  const opcionesStripe = {
-    clientSecret,
-  };
+  const opcionesStripe = { clientSecret };
 
   if (carrito.length === 0) return <div className="text-center py-20 font-bold text-gray-500 text-xl shadow-inner">Tu carrito está vacío 🌸</div>;
 
@@ -105,61 +114,100 @@ const Checkout = () => {
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Datos de Entrega 🚚</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Campos Inteligentes: Nombre y Correo */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre Completo</label>
-            <input 
-              type="text" 
-              name="nombre" 
-              value={datosContacto.nombre} 
-              onChange={handleChange} 
-              readOnly={!!usuario} // Se bloquea si está logueado
-              placeholder="Ej. María Pérez" 
-              className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} 
-            />
-          </div>
-          
-          <div className="md:col-span-2 mb-4">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Correo Electrónico (Para tu recibo)</label>
-            <input 
-              type="email" 
-              name="email" 
-              value={datosContacto.email} 
-              onChange={handleChange} 
-              readOnly={!!usuario} 
-              placeholder="ejemplo@correo.com" 
-              className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} 
-            />
-          </div>
+        <div className="mb-8">
+          <label className="block text-sm font-bold text-gray-700 mb-3">¿Cómo deseas recibir tu pedido? *</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <button
+              type="button"
+              onClick={() => setMetodoEntrega('recoleccion')}
+              className={`p-4 border-2 rounded-xl text-left transition-all duration-200 flex flex-col ${
+                metodoEntrega === 'recoleccion' 
+                  ? 'border-mini-accent bg-pink-50 ring-2 ring-pink-200' 
+                  : 'border-gray-200 hover:border-pink-300'
+              }`}
+            >
+              <span className="font-black text-gray-800 text-lg flex items-center gap-2">
+                🏬 Recoger en Local
+              </span>
+              <span className="text-sm text-gray-500 mt-1">Gratis - Poza Rica, Centro</span>
+            </button>
 
-          {/* Campos de Dirección */}
-          <div className="md:col-span-2 border-t pt-4">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Calle y Número</label>
-            <input type="text" name="calle" value={datosContacto.calle} onChange={handleChange} placeholder="Ej. Av. Reforma 123" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Colonia</label>
-            <input type="text" name="colonia" value={datosContacto.colonia} onChange={handleChange} placeholder="Ej. Cazones" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Ciudad</label>
-            <input type="text" name="ciudad" value={datosContacto.ciudad} onChange={handleChange} placeholder="Poza Rica" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">C.P.</label>
-            <input type="text" name="cp" value={datosContacto.cp} onChange={handleChange} placeholder="93260" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Estado</label>
-            <input type="text" name="estado" value={datosContacto.estado} onChange={handleChange} placeholder="Veracruz" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+            <button
+              type="button"
+              disabled={!config.envioHabilitado}
+              onClick={() => setMetodoEntrega('envio')}
+              className={`p-4 border-2 rounded-xl text-left transition-all duration-200 flex flex-col ${
+                metodoEntrega === 'envio' 
+                  ? 'border-mini-accent bg-pink-50 ring-2 ring-pink-200' 
+                  : !config.envioHabilitado 
+                    ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed' 
+                    : 'border-gray-200 hover:border-pink-300'
+              }`}
+            >
+              <span className="font-black text-gray-800 text-lg flex items-center gap-2">
+                🚚 Envío a Domicilio
+              </span>
+              <span className="text-sm text-gray-500 mt-1">
+                {config.envioHabilitado ? `Costo: $${config.costoEnvio} MXN` : 'No disponible temporalmente'}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* Solo mostramos la opción de guardar dirección si el usuario tiene cuenta */}
-        {usuario && (
-          <div className="mt-6 flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Campos Inteligentes: Nombre y Correo SIEMPRE VISIBLES */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre Completo *</label>
+            <input type="text" name="nombre" value={datosContacto.nombre} onChange={handleChange} readOnly={!!usuario} placeholder="Ej. María Pérez" className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} />
+          </div>
+          
+          <div className="md:col-span-2 mb-2">
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Correo Electrónico (Para tu recibo y QR) *</label>
+            <input type="email" name="email" value={datosContacto.email} onChange={handleChange} readOnly={!!usuario} placeholder="ejemplo@correo.com" className={`w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none ${!!usuario ? 'opacity-60 cursor-not-allowed' : ''}`} />
+          </div>
+
+          {/* 👇 4. UI CONDICIONAL: Mensaje de Recolección */}
+          {metodoEntrega === 'recoleccion' && (
+            <div className="md:col-span-2 animate-fade-in mt-2 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-blue-800 text-sm">
+                <strong>📍 Nota importante:</strong> Al finalizar tu compra, enviaremos un Código QR a tu correo. 
+                Deberás presentarlo en nuestro local para entregarte tu pedido.
+              </p>
+            </div>
+          )}
+
+          {/* 👇 5. UI CONDICIONAL: Campos de Dirección */}
+          {metodoEntrega === 'envio' && (
+            <>
+              <div className="md:col-span-2 border-t pt-4 mt-2 animate-fade-in">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Calle y Número *</label>
+                <input type="text" name="calle" value={datosContacto.calle} onChange={handleChange} placeholder="Ej. Av. Reforma 123" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+              </div>
+              <div className="md:col-span-2 animate-fade-in">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Colonia *</label>
+                <input type="text" name="colonia" value={datosContacto.colonia} onChange={handleChange} placeholder="Ej. Cazones" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+              </div>
+              <div className="animate-fade-in">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Ciudad *</label>
+                <input type="text" name="ciudad" value={datosContacto.ciudad} onChange={handleChange} placeholder="Poza Rica" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+              </div>
+              <div className="animate-fade-in">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">C.P. *</label>
+                <input type="text" name="cp" value={datosContacto.cp} onChange={handleChange} placeholder="93260" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+              </div>
+              <div className="md:col-span-2 animate-fade-in">
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Estado *</label>
+                <input type="text" name="estado" value={datosContacto.estado} onChange={handleChange} placeholder="Veracruz" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-mini-accent outline-none" />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Checkbox para guardar dirección (Solo si hay sesión Y eligió envío) */}
+        {usuario && metodoEntrega === 'envio' && (
+          <div className="mt-6 flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 animate-fade-in">
             <input 
               type="checkbox" 
               id="save-address"
@@ -192,36 +240,43 @@ const Checkout = () => {
             <span>Subtotal</span>
             <span>${subtotal.toLocaleString()}</span>
           </div>
+          
+          {/* 👇 6. RESUMEN DINÁMICO: Cambia según la elección */}
           <div className="flex justify-between items-center">
             <span className="text-gray-500">Envío</span>
-            {config.envioHabilitado ? (
+            {metodoEntrega === 'envio' ? (
               <span className="font-bold text-gray-800">+ ${config.costoEnvio}</span>
-            ) : (
+            ) : metodoEntrega === 'recoleccion' ? (
               <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">Gratis / Entrega Local</span>
+            ) : (
+              <span className="text-xs text-gray-400 italic">Por calcular</span>
             )}
           </div>
-          <div className="flex justify-between text-2xl font-black text-mini-accent pt-2 border-t mt-2">
+          
+          <div className="flex justify-between text-2xl font-black text-mini-accent pt-2 border-t mt-2 transition-all">
             <span>Total</span>
             <span>${total.toLocaleString()} MXN</span>
           </div>
         </div>
 
-        {/* Módulo de Pago */}
-        <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200">
+        <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200 transition-all">
           {!datosCompletos() ? (
             <div className="text-center py-4">
-              <p className="text-mini-accent font-bold text-sm italic">🌸 Faltan datos de contacto</p>
-              <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Llena el formulario para habilitar el pago</p>
+              <p className="text-mini-accent font-bold text-sm italic">
+                {metodoEntrega === '' ? '🌸 Selecciona un método de entrega' : '🌸 Faltan datos de contacto'}
+              </p>
+              <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">
+                Completa la información para habilitar el pago
+              </p>
             </div>
           ) : clientSecret ? (
             <Elements stripe={stripePromise} options={opcionesStripe}>
-              {/* Aquí pasamos todos los datos (incluyendo email) al Formulario de Pago */}
               <FormularioPago datosEnvio={datosContacto} guardarDatos={guardarDireccion} total={total}/>
             </Elements>
           ) : (
             <div className="flex flex-col items-center py-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mini-accent"></div>
-              <p className="text-[10px] text-gray-400 mt-2 uppercase">Conectando con Mini Nosky Bank...</p>
+              <p className="text-[10px] text-gray-400 mt-2 uppercase">Conectando con Stripe...</p>
             </div>
           )}
         </div>
