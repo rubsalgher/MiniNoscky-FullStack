@@ -6,6 +6,12 @@ import Product from '../models/Product.js';
 
 export const crearOrden = async (req, res) => {
   try {
+
+    console.log("=== DEBUG BACKEND: CREAR ORDEN ===");
+    console.log("1. req.body.usuarioId:", req.body.usuarioId);
+    console.log("2. req.user (desde token):", req.user ? req.user._id : "No hay req.user");
+    console.log("3. req.usuario (desde token):", req.usuario ? req.usuario._id : "No hay req.usuario");
+    
     // Recibimos el objeto "cliente" que configuramos en el frontend
     const { productos, direccionEnvio, resultadoPago, cliente, metodoEntrega, usuarioId } = req.body;
     const montoFinal = req.body.precioTotal || req.body.total || 0;
@@ -14,6 +20,8 @@ export const crearOrden = async (req, res) => {
     const currentUser = req.usuario || req.user; 
     const idFinal = currentUser ? currentUser._id : usuarioId;
 
+    console.log("4. ID FINAL QUE SE INTENTARÁ GUARDAR:", idFinalUsuario);
+    
     // 1. Validar que vengan productos
     if (productos && productos.length === 0) {
       return res.status(400).json({ mensaje: 'No hay productos en la orden' });

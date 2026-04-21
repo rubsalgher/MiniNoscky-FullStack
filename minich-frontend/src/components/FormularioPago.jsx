@@ -73,6 +73,11 @@ const FormularioPago = ({ datosEnvio, metodoEntrega, guardarDatos, total }) => {
           color: item.color,
           size: item.size
         }));
+        
+        console.log("=== DEBUG FRONTEND PAGO ===");
+        console.log("1. Objeto usuario completo:", usuario);
+        console.log("2. ID a enviar:", usuario ? (usuario._id || usuario.id) : "NULO");
+        console.log("3. Headers a enviar:", configHeaders);
 
         await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes`, {
           productos: productosOrden,
