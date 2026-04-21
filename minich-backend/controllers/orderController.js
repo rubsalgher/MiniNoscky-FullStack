@@ -18,10 +18,10 @@ export const crearOrden = async (req, res) => {
     
     // Nuestro middleware opcional puede devolver req.usuario o req.user dependiendo de cómo lo escribiste
     const currentUser = req.usuario || req.user; 
-    const idFinal = currentUser ? currentUser._id : usuarioId;
+    const idFinalUsuario = currentUser ? currentUser._id : usuarioId;
 
     console.log("4. ID FINAL QUE SE INTENTARÁ GUARDAR:", idFinalUsuario);
-    
+
     // 1. Validar que vengan productos
     if (productos && productos.length === 0) {
       return res.status(400).json({ mensaje: 'No hay productos en la orden' });
@@ -29,7 +29,7 @@ export const crearOrden = async (req, res) => {
 
     // 2. Crear la nueva orden en memoria
     const orden = new Order({
-      usuario: currentUser ? currentUser._id : undefined, // Si es invitado, no hay ID de cuenta
+      usuario: idFinalUsuario || undefined,
       cliente: cliente, // Guardamos los datos del contacto (vital para invitados)
       productos,
       direccionEnvio,
