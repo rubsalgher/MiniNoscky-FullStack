@@ -271,7 +271,7 @@ const Checkout = () => {
             </div>
           ) : clientSecret ? (
             <Elements stripe={stripePromise} options={opcionesStripe}>
-              <FormularioPago datosEnvio={datosContacto} guardarDatos={guardarDireccion} total={total}/>
+              <FormularioPago datosEnvio={datosContacto} metodoEntrega={metodoEntrega} guardarDatos={guardarDireccion} total={total}/>
             </Elements>
           ) : (
             <div className="flex flex-col items-center py-4">

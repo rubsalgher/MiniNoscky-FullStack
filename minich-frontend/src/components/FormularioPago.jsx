@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
+const FormularioPago = ({ datosEnvio, metodoEntrega, guardarDatos, total }) => {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -75,6 +75,7 @@ const FormularioPago = ({ datosEnvio, guardarDatos, total }) => {
         await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes`, {
           productos: productosOrden,
           direccionEnvio: datosEnvio,
+          metodoEntrega: metodoEntrega,
           cliente: { nombre: datosEnvio.nombre, email: datosEnvio.email }, // Clave para los correos
           precioTotal: total,
           resultadoPago: { 

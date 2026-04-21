@@ -7,7 +7,7 @@ import Product from '../models/Product.js';
 export const crearOrden = async (req, res) => {
   try {
     // Recibimos el objeto "cliente" que configuramos en el frontend
-    const { productos, direccionEnvio, resultadoPago, cliente } = req.body;
+    const { productos, direccionEnvio, resultadoPago, cliente, metodoEntrega } = req.body;
     const montoFinal = req.body.precioTotal || req.body.total || 0;
     
     // Nuestro middleware opcional puede devolver req.usuario o req.user dependiendo de cómo lo escribiste
@@ -24,6 +24,7 @@ export const crearOrden = async (req, res) => {
       cliente: cliente, // Guardamos los datos del contacto (vital para invitados)
       productos,
       direccionEnvio,
+      metodoEntrega: metodoEntrega || 'envio',
       precioTotal: montoFinal,
       estado: 'Pendiente',
       resultadoPago,
