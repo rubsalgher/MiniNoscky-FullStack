@@ -84,6 +84,7 @@ export const crearOrden = async (req, res) => {
 
 export const getMisOrdenes = async (req, res) => {
   try {
+    const usuarioId = req.usuario ? req.usuario._id : req.user._id;
     // Buscamos las órdenes que pertenezcan al ID del usuario y las ordenamos de más nueva a más vieja
     const ordenes = await Order.find({ usuario: req.user._id }).sort({ createdAt: -1 });
     

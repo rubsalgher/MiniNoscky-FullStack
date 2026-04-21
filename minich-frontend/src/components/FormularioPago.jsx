@@ -69,7 +69,9 @@ const FormularioPago = ({ datosEnvio, metodoEntrega, guardarDatos, total }) => {
           cantidad: item.cantidad,
           image: item.image || (item.variants && item.variants[0]?.images[0]?.url),
           price: item.price,
-          productoId: item._id
+          productoId: item._id,
+          color: item.color,
+          size: item.size
         }));
 
         await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/ordenes`, {
