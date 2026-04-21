@@ -7,11 +7,12 @@ import Product from '../models/Product.js';
 export const crearOrden = async (req, res) => {
   try {
     // Recibimos el objeto "cliente" que configuramos en el frontend
-    const { productos, direccionEnvio, resultadoPago, cliente, metodoEntrega } = req.body;
+    const { productos, direccionEnvio, resultadoPago, cliente, metodoEntrega, usuarioId } = req.body;
     const montoFinal = req.body.precioTotal || req.body.total || 0;
     
     // Nuestro middleware opcional puede devolver req.usuario o req.user dependiendo de cómo lo escribiste
     const currentUser = req.usuario || req.user; 
+    const idFinal = currentUser ? currentUser._id : usuarioId;
 
     // 1. Validar que vengan productos
     if (productos && productos.length === 0) {
@@ -84,9 +85,20 @@ export const crearOrden = async (req, res) => {
 
 export const getMisOrdenes = async (req, res) => {
   try {
-    const usuarioId = req.usuario ? req.usuario._id : req.user._id;
-    // Buscamos las órdenes que pertenezcan al ID del usuario y las ordenamos de más nueva a más vieja
-    const ordenes = await Order.find({ usuario: req.user._id }).sort({ createdAt: -1 });
+    // 🛡️ BLINDAJE DEFINITIVO: Buscamos el ID en todas sus formas posibles
+    const idBuscado = req.usuario?._id || req.usuario?.id || req.user?._id || req.user?.id;
+
+    // Si por alguna razón extrema el token llega vacío, avisamos
+    if (!idBuscado) {
+      console.log("Advertencia: Se intentó buscar órdenes pero no se detectó ID de usuario en el Token.");
+      return res.status(401).json({ error: 'No se pudo identificar al usuario' });
+    }
+
+    // Buscamos las órdenes usando el ID rescatado
+    const ordenes = await Order.find({ usuario: idBuscado }).sort({ createdAt: -1 });
+    
+    // (Opcional) Un chismoso en la consola del backend para confirmar
+    console.log(`Buscando órdenes para el ID: ${idBuscado}. Encontradas: ${ordenes.length}`);
     
     res.json(ordenes);
   } catch (error) {

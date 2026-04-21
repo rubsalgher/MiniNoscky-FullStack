@@ -78,7 +78,8 @@ const FormularioPago = ({ datosEnvio, metodoEntrega, guardarDatos, total }) => {
           productos: productosOrden,
           direccionEnvio: datosEnvio,
           metodoEntrega: metodoEntrega,
-          cliente: { nombre: datosEnvio.nombre, email: datosEnvio.email }, // Clave para los correos
+          cliente: { nombre: datosEnvio.nombre, email: datosEnvio.email },
+          usuarioId: usuario ? (usuario._id || usuario.id) : null,
           precioTotal: total,
           resultadoPago: { 
             id: paymentIntent.id, 
