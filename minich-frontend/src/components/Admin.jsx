@@ -397,11 +397,11 @@ const Admin = () => {
                               </div>
                               <div className="md:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Precio *</label>
-                                <input type="number" required min="0" value={talla.price} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'price', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white" />
+                                <input type="number" required min="0" value={talla.price} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'price', e.target.value)} onWheel={(e) => e.target.blur()} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white" />
                               </div>
                               <div className="md:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Stock *</label>
-                                <input type="number" required min="0" value={talla.stock} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'stock', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white" />
+                                <input type="number" required min="0" value={talla.stock} onChange={(e) => actualizarTalla(estiloIndex, tallaIndex, 'stock', e.target.value)} onWheel={(e) => e.target.blur()} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white" />
                               </div>
                               <div className="md:col-span-2 flex justify-end">
                                 {estilo.tallas.length > 1 && (
