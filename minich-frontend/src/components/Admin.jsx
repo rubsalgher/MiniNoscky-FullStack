@@ -71,7 +71,7 @@ const Admin = () => {
   const handleGuardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${productoEditando.id}`, 
+      const { data } = await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${productoEditando.id}`, 
         {
           name: productoEditando.name,
           price: productoEditando.price,
@@ -80,12 +80,18 @@ const Admin = () => {
         },
         { headers: { Authorization: `Bearer ${usuario.token}` } }
       );
+
+      setListaProductos((listaPrevia) => 
+        listaPrevia.map((prod) => 
+          prod._id === productoEditando.id ? data.producto : prod
+        )
+      );
       
       setMensaje({ texto: 'Producto actualizado con éxito ✨', tipo: 'exito' });
       setModalEditar(false);
-      cargarProductosGlobales(); // Recargar la tabla
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
     } catch (error) {
+      console.error(error);
       setMensaje({ texto: 'Error al actualizar el producto', tipo: 'error' });
     }
   };
