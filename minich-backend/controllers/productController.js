@@ -98,10 +98,10 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// 4. Función para actualizar un producto (PUT)
+// --- ACTUALIZAR PRODUCTO  ---
 export const updateProduct = async (req, res) => {
   try {
-    // Buscamos por ID y actualizamos con los datos que vengan en req.body
+    // Buscamos por ID y actualizamos con los datos que vengan en el frontend (req.body)
     // La opción { new: true } hace que MongoDB nos devuelva el producto YA actualizado
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,

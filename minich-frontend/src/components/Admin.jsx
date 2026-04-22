@@ -39,6 +39,11 @@ const Admin = () => {
 
   const { usuario } = useAuth();
 
+  const [modalEditar, setModalEditar] = useState(false);
+  const [productoEditando, setProductoEditando] = useState({
+    id: '', name: '', price: '', category: '', description: ''
+  });
+
   const cargarAjustes = async () => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/settings`);
@@ -62,6 +67,39 @@ const Admin = () => {
       setCargandoLista(false);
     }
   };  
+
+  const handleGuardarEdicion = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${productoEditando.id}`, 
+        {
+          name: productoEditando.name,
+          price: productoEditando.price,
+          category: productoEditando.category,
+          description: productoEditando.description
+        },
+        { headers: { Authorization: `Bearer ${usuario.token}` } }
+      );
+      
+      setMensaje({ texto: 'Producto actualizado con éxito ✨', tipo: 'exito' });
+      setModalEditar(false);
+      cargarProductosGlobales(); // Recargar la tabla
+      setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+    } catch (error) {
+      setMensaje({ texto: 'Error al actualizar el producto', tipo: 'error' });
+    }
+  };
+
+  const abrirModalEdicion = (prod) => {
+    setProductoEditando({
+      id: prod._id,
+      name: prod.name,
+      price: prod.price,
+      category: prod.category || 'Accesorios', // Valor por defecto si está vacío
+      description: prod.description || ''
+    });
+    setModalEditar(true);
+  };
 
   const cargarOrdenesGlobales = async () => {
     setCargandoOrdenes(true);
@@ -423,6 +461,12 @@ const Admin = () => {
                           <td className="px-6 py-4">
                             <div className="flex justify-end gap-2 items-center">
                               <button 
+                                onClick={() => abrirModalEdicion(prod)}
+                                className="px-4 py-1.5 rounded-full text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors"
+                              >
+                                Editar ✏️
+                              </button>
+                              <button 
                                 onClick={() => {
                                   setModalResurtir({ activo: true, producto: prod });
                                   setStockTemporal(prod.variants ? prod.variants.map(v => ({ ...v })) : []);
@@ -738,6 +782,80 @@ const Admin = () => {
                 Guardar Cambios
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 👇 MODAL PARA EDITAR PRODUCTO 👇 */}
+      {modalEditar && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border-t-4 border-mini-accent">
+            <h3 className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+              <span>✏️</span> Editar Producto
+            </h3>
+            
+            <form onSubmit={handleGuardarEdicion} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Nombre</label>
+                <input 
+                  type="text" 
+                  required
+                  value={productoEditando.name}
+                  onChange={(e) => setProductoEditando({...productoEditando, name: e.target.value})}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Precio ($)</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={productoEditando.price}
+                    onChange={(e) => setProductoEditando({...productoEditando, price: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Categoría</label>
+                  <select 
+                    value={productoEditando.category}
+                    onChange={(e) => setProductoEditando({...productoEditando, category: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50 cursor-pointer"
+                  >
+                    <option value="Regalos">Regalos</option>
+                    <option value="Accesorios">Accesorios</option>
+                    <option value="Importado">Importado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Descripción</label>
+                <textarea 
+                  rows="3"
+                  value={productoEditando.description}
+                  onChange={(e) => setProductoEditando({...productoEditando, description: e.target.value})}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-mini-accent outline-none bg-gray-50 resize-none"
+                ></textarea>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-gray-100">
+                <button 
+                  type="button"
+                  onClick={() => setModalEditar(false)}
+                  className="px-6 py-2.5 rounded-full text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="px-6 py-2.5 rounded-full text-sm font-bold bg-mini-accent text-white hover:bg-pink-400 transition-colors shadow-lg"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
