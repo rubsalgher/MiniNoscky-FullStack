@@ -7,7 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const stripePromise = loadStripe('pk_test_51TKs3RB6r1DlICRdGX3GknzlATejBwYml0UAs5hzzJO4yCHxT2wgzaHqjJByn6VZZjpdMZTvgPC2gQdLsZqCVOrJ00RT6NlFPd');
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const Checkout = () => {
   const { carrito } = useCart();
